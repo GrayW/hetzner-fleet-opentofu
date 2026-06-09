@@ -59,6 +59,8 @@ tofu apply
 
 OpenTofu will:
 - Provision a `CPX22` server (2 vCPU / 4 GB RAM) in Nuremberg
+- Create Object Storage in the same location
+- Create a Firewall service with basic rules and apply it to the resources
 - Generate all secrets (MySQL passwords, JWT key, enroll secret, Windows MDM WSTEP CA)
 - Write a cloud-init payload that installs and starts Fleet, MySQL, Redis, and Caddy
 - Output the IP addresses and next steps
