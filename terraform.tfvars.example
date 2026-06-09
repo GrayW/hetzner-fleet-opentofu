@@ -1,0 +1,19 @@
+# Copy to terraform.tfvars and fill in values.
+# terraform.tfvars is gitignored — never commit secrets.
+
+# Required
+hetzner_token = "your-hetzner-api-token"
+
+# Optional overrides (defaults shown)
+# server_type       = "cpx22"
+# location          = "nbg1"              # nbg1=Nuremberg, fsn1=Falkenstein, hel1=Helsinki
+# image_name        = "opensuse-16"
+# fleet_version     = "v4.86.0"           # Pin Fleet — never use 'latest' (tracks dev builds)
+# fleet_license_key = "your-license-key"  # Leave empty for Community Edition
+# domain            = "fleet.example.com"
+# admin_email       = "admin@example.com"
+
+# Object Storage — leave empty to skip (can add later with tofu apply)
+# S3 region is derived from var.location automatically (Hetzner requirement).
+# s3_access_key = "your-hetzner-s3-access-key"
+# s3_secret_key = "your-hetzner-s3-secret-key"
