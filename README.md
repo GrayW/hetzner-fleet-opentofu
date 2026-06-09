@@ -1,6 +1,7 @@
 # Fleet MDM on Hetzner Cloud
 
 Deploy a [Fleet](https://fleetdm.com) instance on Hetzner Cloud. Suitable for testing, device management labs, and small fleets (≤ 50 devices).
+
 **Transparency:** This was created with the assistance of Claude Code
 
 ## Stack
