@@ -81,6 +81,15 @@ resource "tls_private_key" "fleet" {
   algorithm = "ED25519"
 }
 
+# ── Apple MDM server private key ──────────────────────────────────────────────
+# Fleet requires a random symmetric secret (≥32 bytes) injected via
+# FLEET_SERVER_PRIVATE_KEY. It is NOT an RSA key — equivalent to:
+#   openssl rand -hex 48
+
+resource "random_bytes" "server_private_key" {
+  length = 48 # 48 raw bytes → 96-char hex string, well above the 32-byte minimum
+}
+
 # ── Windows MDM WSTEP certificate ─────────────────────────────────────────────
 # Fleet requires a CA cert+key pair for the Windows Simple Certificate
 # Enrollment Protocol (WSTEP). Equivalent to:
@@ -174,6 +183,7 @@ locals {
     enroll_secret      = random_bytes.enroll_secret.hex
     fleet_version      = var.fleet_version
     fleet_license_key  = var.fleet_license_key
+    server_private_key = random_bytes.server_private_key.hex
     wstep_cert         = tls_self_signed_cert.wstep.cert_pem
     wstep_key          = tls_private_key.wstep.private_key_pem
     domain             = var.domain
