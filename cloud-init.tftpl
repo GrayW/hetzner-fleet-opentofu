@@ -34,6 +34,7 @@ write_files:
       FLEET_OSQUERY_ENROLL_COOLDOWN=5m
       FLEET_MDM_SSO_RATE_LIMIT_PER_MINUTE=160000
       FLEET_VULNERABILITIES_DATABASES_PATH=/home/fleet
+      FLEET_SERVER_PRIVATE_KEY=${server_private_key}
       FLEET_MDM_WINDOWS_WSTEP_IDENTITY_CERT=/etc/fleet/wstep.crt
       FLEET_MDM_WINDOWS_WSTEP_IDENTITY_KEY=/etc/fleet/wstep.key
 %{ if fleet_license_key != "" ~}
