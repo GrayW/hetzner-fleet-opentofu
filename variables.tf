@@ -56,7 +56,7 @@ variable "image_name" {
 variable "fleet_version" {
   description = "Fleet Docker image tag. Pin to a specific release — 'latest' tracks development builds."
   type        = string
-  default     = "v4.86.0"
+  default     = "v4.87.1"
 }
 
 variable "fleet_license_key" {
