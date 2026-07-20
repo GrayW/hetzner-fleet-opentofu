@@ -29,17 +29,27 @@ provider "hcloud" {
   token = var.hetzner_token
 }
 
+# Read S3 credentials from environment variables
+locals {
+  s3_env_access_key  = try(env("HETZNER_S3_ACCESS_KEY"), "")
+  s3_env_secret_key  = try(env("HETZNER_S3_SECRET_KEY"), "")
+}
+
 # AWS provider configured for Hetzner Object Storage (S3-compatible API).
 # The endpoint is location-specific; "us-east-1" is accepted as the region
 # by Hetzner for SDK compatibility — the endpoint URL controls the actual DC.
+# Credentials can be provided via:
+#   1. Environment variables: HETZNER_S3_ACCESS_KEY and HETZNER_S3_SECRET_KEY
+#   2. Terraform variables: s3_access_key and s3_secret_key
+#   3. TF_VAR_* environment variables: TF_VAR_s3_access_key and TF_VAR_s3_secret_key
 # Placeholder credentials are used when S3 is not configured so provider
 # init doesn't fail; no API calls are made in that case (count = 0 resources).
 provider "aws" {
   alias      = "hetzner_s3"
   # Hetzner S3 region must equal the datacenter location name (nbg1, fsn1, hel1…)
   region     = var.location
-  access_key = var.s3_access_key != "" ? var.s3_access_key : "placeholder"
-  secret_key = var.s3_secret_key != "" ? var.s3_secret_key : "placeholder"
+  access_key = coalesce(var.s3_access_key, local.s3_env_access_key, "placeholder")
+  secret_key = coalesce(var.s3_secret_key, local.s3_env_secret_key, "placeholder")
 
   endpoints {
     s3 = "https://${var.location}.your-objectstorage.com"
@@ -172,7 +182,11 @@ resource "hcloud_firewall" "fleet" {
 # ── Object Storage ────────────────────────────────────────────────────────────
 
 locals {
-  s3_configured = var.s3_access_key != ""
+  # Determine if S3 is configured by checking both var and env sources
+  s3_access_key_resolved = coalesce(var.s3_access_key, local.s3_env_access_key, "")
+  s3_secret_key_resolved = coalesce(var.s3_secret_key, local.s3_env_secret_key, "")
+  
+  s3_configured = local.s3_access_key_resolved != ""
   s3_bucket     = "${var.server_name}-packages"
   s3_endpoint   = "https://${var.location}.your-objectstorage.com"
 
@@ -190,8 +204,8 @@ locals {
     admin_email        = var.admin_email
     s3_configured = local.s3_configured
     s3_bucket     = local.s3_bucket
-    s3_access_key = var.s3_access_key
-    s3_secret_key = var.s3_secret_key
+    s3_access_key = local.s3_access_key_resolved
+    s3_secret_key = local.s3_secret_key_resolved
     s3_endpoint   = local.s3_endpoint
     s3_region     = var.location
   })
