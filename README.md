@@ -105,8 +105,8 @@ All variables have safe defaults.
 | `image_name` | `opensuse-16` | Hetzner system image name |
 | `fleet_version` | `v4.86.0` | Fleet Docker image tag — always pin, never use `latest` |
 | `fleet_license_key` | `""` | Fleet Premium license. Leave empty for Community Edition |
-| `s3_access_key` | `""` | Hetzner Object Storage key (optional — enables software packages) |
-| `s3_secret_key` | `""` | Hetzner Object Storage secret |
+| `s3_access_key` | `""` | Hetzner Object Storage key (optional — enables software packages). Can also be set via `HETZNER_S3_ACCESS_KEY` or `TF_VAR_s3_access_key` environment variables. |
+| `s3_secret_key` | `""` | Hetzner Object Storage secret. Can also be set via `HETZNER_S3_SECRET_KEY` or `TF_VAR_s3_secret_key` environment variables. |
 
 > **Server type note:** If `tofu apply` fails with `resource_unavailable`, try `cx23`.
 
@@ -138,14 +138,30 @@ Windows MDM (WSTEP) is enabled automatically. OpenTofu generates a self-signed C
 Fleet can store software installer packages in Hetzner Object Storage (S3-compatible). To enable:
 
 1. Create access keys at [console.hetzner.com](https://console.hetzner.com) → Object Storage → Access Keys
-2. Add to `terraform.tfvars`:
-   ```hcl
-   s3_access_key = "your-access-key"
-   s3_secret_key = "your-secret-key"
-   ```
+2. Provide credentials via one of these methods:
+   - **Environment variables (recommended for CI/CD):**
+     ```bash
+     export HETZNER_S3_ACCESS_KEY="your-access-key"
+     export HETZNER_S3_SECRET_KEY="your-secret-key"
+     tofu apply
+     ```
+   - **Terraform variables file:**
+     Add to `terraform.tfvars`:
+     ```hcl
+     s3_access_key = "your-access-key"
+     s3_secret_key = "your-secret-key"
+     ```
+   - **TF_VAR environment variables:**
+     ```bash
+     export TF_VAR_s3_access_key="your-access-key"
+     export TF_VAR_s3_secret_key="your-secret-key"
+     tofu apply
+     ```
 3. Re-run `tofu apply` — the bucket is created and Fleet is configured automatically.
 
 The bucket name and endpoint are derived from `var.location` automatically (Hetzner requires the S3 region to equal the datacenter location name, e.g. `nbg1`).
+
+> **Security note:** Environment variables are not stored in Terraform state, making them ideal for CI/CD pipelines. The `terraform.tfvars` file is gitignored and should never be committed.
 
 ---
 
