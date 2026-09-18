@@ -103,7 +103,7 @@ All variables have safe defaults.
 | `server_type` | `cpx22` | Hetzner server type (2 vCPU / 4 GB). See note below |
 | `location` | `nbg1` | Datacenter: `nbg1` Nuremberg · `fsn1` Falkenstein · `hel1` Helsinki · `ash` Ashburn · `hil` Hillsboro · `sin` Singapore |
 | `image_name` | `opensuse-16` | Hetzner system image name |
-| `fleet_version` | `v4.86.0` | Fleet Docker image tag — always pin, never use `latest` |
+| `fleet_version` | `v4.91.1` | Fleet Docker image tag — always pin, never use `latest` |
 | `fleet_license_key` | `""` | Fleet Premium license. Leave empty for Community Edition |
 | `s3_access_key` | `""` | Hetzner Object Storage key (optional — enables software packages) |
 | `s3_secret_key` | `""` | Hetzner Object Storage secret |
