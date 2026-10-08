@@ -75,6 +75,7 @@ variable "s3_access_key" {
   description = <<-EOT
     Hetzner Object Storage access key for Fleet software package distribution.
     Leave empty to skip S3 setup (Fleet will still work; software packages won't).
+    Can also be set via HETZNER_S3_ACCESS_KEY environment variable.
     Create credentials: https://console.hetzner.com → Object Storage → Access Keys
   EOT
   type      = string
@@ -83,7 +84,10 @@ variable "s3_access_key" {
 }
 
 variable "s3_secret_key" {
-  description = "Hetzner Object Storage secret key"
+  description = <<-EOT
+    Hetzner Object Storage secret key.
+    Can also be set via HETZNER_S3_SECRET_KEY environment variable.
+  EOT
   type        = string
   default     = ""
   sensitive   = true
