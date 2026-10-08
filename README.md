@@ -32,8 +32,8 @@ Deploy a [Fleet](https://fleetdm.com) instance on Hetzner Cloud. Suitable for te
 ### 1. Clone and initialise
 
 ```bash
-git clone https://github.com/your-org/hetzner-fleet
-cd hetzner-fleet
+git clone https://github.com/GrayW/hetzner-fleet-opentofu
+cd hetzner-fleet-opentofu
 tofu init
 ```
 
