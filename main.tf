@@ -221,6 +221,11 @@ resource "hcloud_server" "fleet" {
   firewall_ids = [hcloud_firewall.fleet.id]
   user_data    = local.cloud_init
 
+  # Enable Hetzner automated backups: 7 daily rotating snapshots of the
+  # server volume, billed at ~20% of the server price. Restore from the
+  # Hetzner console or API.
+  backup = true
+
   # Explicitly enable both stacks — Hetzner assigns a /32 IPv4 and a /64 IPv6.
   public_net {
     ipv4_enabled = true
