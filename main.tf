@@ -228,8 +228,10 @@ resource "hcloud_server" "fleet" {
   }
 
   # Server replacement destroys persistent data (MariaDB volumes).
-  # For deliberate replacement: tofu taint hcloud_server.fleet
+  # For deliberate replacement: remove prevent_destroy, then
+  # tofu taint hcloud_server.fleet
   lifecycle {
-    ignore_changes = [user_data] # re-apply doesn't re-run cloud-init
+    ignore_changes  = [user_data] # re-apply doesn't re-run cloud-init
+    prevent_destroy = true
   }
 }
