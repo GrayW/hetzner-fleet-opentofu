@@ -1,0 +1,31 @@
+name: Validate
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+jobs:
+  validate:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Set up OpenTofu
+        uses: opentofu/setup-opentofu@v1
+        with:
+          tofu_version: 1.9.0
+
+      # Advisory for now: some blocks in main.tf are not yet fmt-normalised.
+      # Once `tofu fmt -recursive` has been run locally, drop continue-on-error
+      # to make this blocking.
+      - name: Check formatting (advisory)
+        run: tofu fmt -check -recursive
+        continue-on-error: true
+
+      - name: Initialise providers (no backend, no credentials needed)
+        run: tofu init -backend=false
+
+      - name: Validate configuration
+        run: tofu validate
