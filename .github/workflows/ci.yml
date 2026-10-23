@@ -1,0 +1,63 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  validate:
+    name: fmt + validate (OpenTofu ${{ matrix.tofu_version }})
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        # Minimum supported release, and whatever is newest.
+        tofu_version: ["1.9.0", "latest"]
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: opentofu/setup-opentofu@v1
+        with:
+          tofu_version: ${{ matrix.tofu_version }}
+
+      - name: Format check
+        run: tofu fmt -check -recursive -diff
+
+      # TODO: once .terraform.lock.hcl is committed (#17), add -lockfile=readonly
+      # so CI fails if provider versions drift from the committed lock file.
+      - name: Init (no backend)
+        run: tofu init -backend=false -input=false
+
+      - name: Validate
+        run: tofu validate
+
+  lint:
+    name: tflint
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: terraform-linters/setup-tflint@v4
+      - name: Run tflint
+        run: tflint --format compact
+
+  hygiene:
+    name: no secrets or state committed
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Check for files that must never be committed
+        run: |
+          bad=$(git ls-files | grep -E '(\.tfstate(\.backup)?$|(^|/)terraform\.tfvars$|(^|/)\.fleet_ed25519$|\.auto\.tfvars$)' || true)
+          if [ -n "$bad" ]; then
+            echo "::error::Sensitive files are tracked by git:"
+            echo "$bad"
+            exit 1
+          fi
