@@ -15,5 +15,6 @@ hetzner_token = "your-hetzner-api-token"
 
 # Object Storage — leave empty to skip (can add later with tofu apply)
 # S3 region is derived from var.location automatically (Hetzner requirement).
+# Alternatively, set via environment variables: HETZNER_S3_ACCESS_KEY and HETZNER_S3_SECRET_KEY
 # s3_access_key = "your-hetzner-s3-access-key"
 # s3_secret_key = "your-hetzner-s3-secret-key"
