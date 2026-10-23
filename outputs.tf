@@ -23,6 +23,16 @@ output "ipv6_address" {
   value       = hcloud_server.fleet.ipv6_address
 }
 
+output "data_volume_id" {
+  description = "Hetzner ID of the data volume mounted at /var/lib/fleet"
+  value       = hcloud_volume.fleet_data.id
+}
+
+output "data_volume_device" {
+  description = "Stable device path of the data volume on the server"
+  value       = "/dev/disk/by-id/scsi-0HC_Volume_${hcloud_volume.fleet_data.id}"
+}
+
 output "ssh_command" {
   description = "SSH command using the generated key"
   value       = "ssh -i ${path.module}/.fleet_ed25519 root@${hcloud_server.fleet.ipv4_address}"

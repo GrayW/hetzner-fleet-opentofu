@@ -196,6 +196,7 @@ locals {
     s3_secret_key      = var.s3_secret_key
     s3_endpoint        = local.s3_endpoint
     s3_region          = var.location
+    data_volume_id     = hcloud_volume.fleet_data.id
   })
 }
 
@@ -203,6 +204,19 @@ resource "aws_s3_bucket" "fleet_packages" {
   count    = local.s3_configured ? 1 : 0
   provider = aws.hetzner_s3
   bucket   = local.s3_bucket
+}
+
+# ── Data volume ───────────────────────────────────────────────────────────────
+# Holds everything under /var/lib/fleet (MySQL, Redis, Caddy certs, vulndb) so
+# data survives server replacement. Hetzner formats it once at creation;
+# cloud-init only mounts it and never runs mkfs, so a reattached volume is safe.
+
+resource "hcloud_volume" "fleet_data" {
+  name              = "${var.server_name}-data"
+  size              = var.data_volume_size
+  location          = var.location
+  format            = "ext4"
+  delete_protection = var.protect_resources
 }
 
 # ── Image ─────────────────────────────────────────────────────────────────────
@@ -234,10 +248,18 @@ resource "hcloud_server" "fleet" {
     ipv6_enabled = true
   }
 
-  # Server replacement destroys persistent data (MySQL volumes).
-  # For deliberate replacement: set protect_resources = false, apply, then
-  # tofu taint hcloud_server.fleet
+  # Persistent data lives on hcloud_volume.fleet_data, which is reattached to
+  # a replacement server. For deliberate replacement: set
+  # protect_resources = false, apply, then tofu taint hcloud_server.fleet
   lifecycle {
     ignore_changes = [user_data] # re-apply doesn't re-run cloud-init
   }
+}
+
+# Attached after the server exists; cloud-init waits for the device to appear.
+# automount stays off because cloud-init owns the fstab entry.
+resource "hcloud_volume_attachment" "fleet_data" {
+  volume_id = hcloud_volume.fleet_data.id
+  server_id = hcloud_server.fleet.id
+  automount = false
 }

@@ -11,11 +11,20 @@ explicitly and include upgrade notes.
 ### Added
 - `protect_resources` variable (default `true`) that enables Hetzner delete and
   rebuild protection on the server (#15).
+- Hetzner data volume (`hcloud_volume.fleet_data`, ext4) mounted at
+  `/var/lib/fleet`, so MySQL, Redis, Caddy certs and vulndb survive server
+  replacement. New `data_volume_size` variable (default 20 GB) and
+  `data_volume_id` / `data_volume_device` outputs. Container units refuse to
+  start if the volume isn't mounted (#58).
 
 ### Changed
 - **Breaking:** `tofu destroy` and server replacement now fail by default.
   Upgrade note: the next `tofu apply` turns protection on in place (no server
   restart). To tear down, set `protect_resources = false`, apply, then destroy.
+- **Upgrade required for existing servers:** `tofu apply` creates and attaches
+  the data volume but doesn't move data onto it. Follow
+  [docs/upgrade-0.2.md](docs/upgrade-0.2.md) to copy `/var/lib/fleet` over
+  (a few minutes of downtime).
 
 ## [0.1.0] - 2026-10-23
 

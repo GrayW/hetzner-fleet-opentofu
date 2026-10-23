@@ -15,6 +15,7 @@ Deploy a [Fleet](https://fleetdm.com) instance on Hetzner Cloud. Suitable for la
 | Database | MySQL 8.0 |
 | Cache | Redis 7 |
 | Reverse proxy / TLS | Caddy 2 (automatic Let's Encrypt) |
+| Persistent data | Hetzner volume at `/var/lib/fleet`, survives server replacement |
 | Infra-as-code | OpenTofu (recommended) or Terraform |
 
 ---
@@ -107,7 +108,8 @@ All variables have safe defaults.
 | `fleet_license_key` | `""` | Fleet Premium license. Leave empty for Community Edition |
 | `s3_access_key` | `""` | Hetzner Object Storage key (optional — enables software packages) |
 | `s3_secret_key` | `""` | Hetzner Object Storage secret |
-| `protect_resources` | `true` | Hetzner delete/rebuild protection. Set `false` and apply before `tofu destroy` |
+| `data_volume_size` | `20` | Data volume size in GB (min 10). Can grow later, never shrink |
+| `protect_resources` | `true` | Hetzner delete/rebuild protection on the server, delete protection on the volume. Set `false` and apply before `tofu destroy` |
 
 > **Server type note:** If `tofu apply` fails with `resource_unavailable`, try `cx23`.
 
@@ -119,6 +121,7 @@ All variables have safe defaults.
 |---|---|
 | `ipv4_address` | Server IPv4 — add as DNS `A` record |
 | `ipv6_address` | Server IPv6 — add as DNS `AAAA` record |
+| `data_volume_device` | Device path of the data volume on the server |
 | `ssh_command` | Ready-to-paste SSH command using the generated key |
 | `fleet_url` | Fleet HTTPS URL |
 | `enroll_secret` | osquery enroll secret (sensitive — use `tofu output -raw enroll_secret`) |
@@ -180,6 +183,19 @@ tofu destroy
 The apply step is what lifts protection on Hetzner's side. Setting the
 variable at destroy time alone isn't enough, because a destroy doesn't update
 resources before deleting them.
+
+`tofu destroy` deletes the data volume too, so all Fleet data is lost. To
+rebuild the server but keep the data, replace only the server instead:
+
+```bash
+tofu apply -var protect_resources=false
+tofu taint hcloud_server.fleet
+tofu apply -var protect_resources=false
+```
+
+The volume is reattached to the new server and mounted at `/var/lib/fleet`.
+Set `protect_resources` back to `true` afterwards. The new server gets new
+IP addresses, so update DNS.
 
 Then remove the DNS records for your domain manually.
 
