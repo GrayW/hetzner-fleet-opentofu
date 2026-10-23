@@ -181,3 +181,7 @@ Then remove the DNS records for your domain manually.
 - All secrets (MySQL passwords, JWT key, enroll secret, WSTEP private key) are generated locally by OpenTofu and never leave your machine except as cloud-init user-data sent over HTTPS to Hetzner.
 - Sensitive files on the server (`wstep.key`, `enroll_secret`) are `0600 root:root`. Fleet reads them inside the container via Podman secrets (tmpfs mounts), so the container runs as a non-root user with no access to the host filesystem.
 - `terraform.tfvars` and `terraform.tfstate` are gitignored — never commit them.
+
+## License
+
+[MIT](LICENSE)
