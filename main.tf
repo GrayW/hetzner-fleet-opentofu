@@ -182,6 +182,8 @@ locals {
     fleet_jwt     = random_password.fleet_jwt.result
     enroll_secret      = random_bytes.enroll_secret.hex
     fleet_version      = var.fleet_version
+    mysql_version      = var.mysql_version
+    redis_version      = var.redis_version
     fleet_license_key  = var.fleet_license_key
     server_private_key = random_bytes.server_private_key.hex
     wstep_cert         = tls_self_signed_cert.wstep.cert_pem
