@@ -39,8 +39,8 @@ variable "admin_cidrs" {
     Setting this to ["0.0.0.0/0", "::/0"] leaves SSH open to the world — use
     only for initial setup or when your IP is dynamic.
   EOT
-  type    = list(string)
-  default = null
+  type        = list(string)
+  default     = null
 
   validation {
     condition     = var.admin_cidrs != null
@@ -58,8 +58,8 @@ variable "server_type" {
       nbg1: cpx22 → cx23
       fsn1: cpx22 → cx23
   EOT
-  type    = string
-  default = "cpx22"
+  type        = string
+  default     = "cpx22"
 
   validation {
     condition     = contains(["cx22", "cx32", "cx42", "cx52", "cpx11", "cpx21", "cpx22", "cpx31", "cpx41", "cpx51", "cax11", "cax21", "cax31", "cax41", "cx23", "cx33", "cx43", "cx53"], var.server_type)
@@ -112,9 +112,9 @@ variable "fleet_license_key" {
     Fleet Premium license key. Leave empty for Community Edition.
     Obtain from: https://fleetdm.com/customers
   EOT
-  type      = string
-  default   = ""
-  sensitive = true
+  type        = string
+  default     = ""
+  sensitive   = true
 }
 
 # ── S3 Object Storage ─────────────────────────────────────────────────────────
@@ -125,9 +125,9 @@ variable "s3_access_key" {
     Leave empty to skip S3 setup (Fleet will still work; software packages won't).
     Create credentials: https://console.hetzner.com → Object Storage → Access Keys
   EOT
-  type      = string
-  default   = ""
-  sensitive = true
+  type        = string
+  default     = ""
+  sensitive   = true
 }
 
 variable "s3_secret_key" {
