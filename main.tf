@@ -229,7 +229,7 @@ resource "hcloud_server" "fleet" {
     ipv6_enabled = true
   }
 
-  # Server replacement destroys persistent data (MariaDB volumes).
+  # Server replacement destroys persistent data (MySQL volumes).
   # For deliberate replacement: tofu taint hcloud_server.fleet
   lifecycle {
     ignore_changes = [user_data] # re-apply doesn't re-run cloud-init
