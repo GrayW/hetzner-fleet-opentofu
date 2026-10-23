@@ -118,16 +118,44 @@ rotation of the enroll secret; CI green on `main`.
 
 ---
 
-## Decisions needed before coding
+## v0.2.0 decisions (2026-10-23)
 
-1. **Backup tool and target**: restic to Hetzner Object Storage in a second
-   location (recommended), or another provider?
-2. **Backup type**: logical dump (simple, fine at this scale) vs. physical
-   backup (faster restore, more moving parts).
-3. **Existing deployments**: support in-place migration to the new volume and
-   IPs, or declare "rebuild required" in 0.x and document it?
-4. **Alerting**: ship docs only, or include an optional integration
-   (healthchecks.io / Uptime Kuma)?
-5. **Deferred issues** (#26, #27, #10, #9, #11, #12, #5, #13): confirm they are
+- **Upgrades**: support in-place migration from v0.1.0. CHANGELOG documents copying
+  `/var/lib/fleet` onto the new volume and `tofu import` of the existing
+  auto-created Primary IPs (same addresses, no DNS change).
+- **Volume (1.1, #58)**: one `hcloud_volume` mounted at `/var/lib/fleet` (MySQL,
+  Redis, Caddy certs, vulndb), not `/var/lib/mysql`. Hetzner formats it once
+  (`format = "ext4"`); cloud-init only mounts by `/dev/disk/by-id` and never runs mkfs.
+- **Protection (1.2, #15)**: `protect_resources` variable (default `true`) sets
+  Hetzner `delete_protection`/`rebuild_protection` on the server, volume and Primary
+  IPs. Close #15 in favour of this; no `prevent_destroy`.
+- **Primary IPs (1.3, #59)**: `auto_delete = false`; existing servers import theirs.
+- **Backups (1.4, #4)**: opt-in (empty `backup_repository` means no timer, with a loud
+  warning in `next_steps` and the README). Nightly 03:00 UTC systemd timer:
+  `mysqldump --single-transaction` | `restic backup --stdin`, plus `/etc/fleet`.
+  Retention 7 daily / 4 weekly / 6 monthly, set by variables. Target is Hetzner
+  Object Storage in a different location; the operator creates the bucket and
+  scoped keys by hand, so tofu never manages or destroys them. The restic password
+  is an operator-supplied sensitive variable, never generated into state.
+  Optional `backup_healthcheck_url` ping on success and `/fail` on error.
+- **Secrets recovery (1.5, #60)**: sensitive outputs for `server_private_key` and
+  `wstep_key`, plus `scripts/export-secrets.sh`; `/etc/fleet` is in the restic
+  backup; optional override variables (`fleet_server_private_key`,
+  `wstep_cert_pem`/`wstep_key_pem`, `enroll_secret`, default empty means generate)
+  so a total loss of state is recoverable with only the restic password and
+  bucket credentials. (`tls_*` resources can't be imported, so overrides are required.)
+- **State (1.6, #16)**: encryption on and enforced in `main.tf`, required
+  `state_passphrase`; CHANGELOG shows the one-time `fallback` migration.
+  `backend.tf.example` for a Hetzner Object Storage s3 backend with `use_lockfile`;
+  local stays the default.
+- **Restore drill (1.7, #61)**: `docs/restore.md` + `scripts/restore.sh`; no target
+  set in advance; the operator runs it on a real project and the measured RTO is recorded.
+- **Server backups (1.8, #62)**: `server_backups` variable, default `false`.
+- **PRs**: one per item, in order: protection, volume, Primary IPs, server
+  backups, state encryption, MySQL backups, secrets recovery, restore drill.
+
+## Open decisions (later releases)
+
+1. **Deferred issues** (#26, #27, #10, #9, #11, #12, #5, #13): confirm they are
    post-1.0. Note #13 (image by id) can force server replacement when Hetzner
    publishes a new image; if done, add `image` to `ignore_changes`.

@@ -136,3 +136,15 @@ variable "s3_secret_key" {
   default     = ""
   sensitive   = true
 }
+
+# ── Protection ────────────────────────────────────────────────────────────────
+
+variable "protect_resources" {
+  description = <<-EOT
+    Enable Hetzner delete and rebuild protection on the server. While true,
+    `tofu destroy` and server replacement fail. To tear down: set to false,
+    run `tofu apply`, then `tofu destroy`.
+  EOT
+  type        = bool
+  default     = true
+}

@@ -223,6 +223,11 @@ resource "hcloud_server" "fleet" {
   firewall_ids = [hcloud_firewall.fleet.id]
   user_data    = local.cloud_init
 
+  # Hetzner-side protection: the API refuses delete/rebuild while enabled, so
+  # `tofu destroy` and replacement both fail. Hetzner requires both flags to match.
+  delete_protection  = var.protect_resources
+  rebuild_protection = var.protect_resources
+
   # Explicitly enable both stacks — Hetzner assigns a /32 IPv4 and a /64 IPv6.
   public_net {
     ipv4_enabled = true
@@ -230,7 +235,8 @@ resource "hcloud_server" "fleet" {
   }
 
   # Server replacement destroys persistent data (MySQL volumes).
-  # For deliberate replacement: tofu taint hcloud_server.fleet
+  # For deliberate replacement: set protect_resources = false, apply, then
+  # tofu taint hcloud_server.fleet
   lifecycle {
     ignore_changes = [user_data] # re-apply doesn't re-run cloud-init
   }

@@ -107,6 +107,7 @@ All variables have safe defaults.
 | `fleet_license_key` | `""` | Fleet Premium license. Leave empty for Community Edition |
 | `s3_access_key` | `""` | Hetzner Object Storage key (optional — enables software packages) |
 | `s3_secret_key` | `""` | Hetzner Object Storage secret |
+| `protect_resources` | `true` | Hetzner delete/rebuild protection. Set `false` and apply before `tofu destroy` |
 
 > **Server type note:** If `tofu apply` fails with `resource_unavailable`, try `cx23`.
 
@@ -168,9 +169,17 @@ ssh -i .fleet_ed25519 root@<ip> 'cloud-init status --wait && cloud-init analyze'
 
 ### OpenTofu
 
+Hetzner delete and rebuild protection is on by default (`protect_resources = true`),
+so `tofu destroy` fails until you turn it off:
+
 ```bash
+tofu apply -var protect_resources=false
 tofu destroy
 ```
+
+The apply step is what lifts protection on Hetzner's side. Setting the
+variable at destroy time alone isn't enough, because a destroy doesn't update
+resources before deleting them.
 
 Then remove the DNS records for your domain manually.
 
