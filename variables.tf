@@ -59,6 +59,18 @@ variable "fleet_version" {
   default     = "v4.92.3"
 }
 
+variable "mysql_version" {
+  description = "MySQL Docker image tag. Pin to an exact patch version."
+  type        = string
+  default     = "8.0.42"
+}
+
+variable "redis_version" {
+  description = "Redis Docker image tag. Pin to an exact patch version."
+  type        = string
+  default     = "7.2.6-alpine"
+}
+
 variable "fleet_license_key" {
   description = <<-EOT
     Fleet Premium license key. Leave empty for Community Edition.
