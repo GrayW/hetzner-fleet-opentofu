@@ -112,6 +112,8 @@ write_files:
     content: |
       [Unit]
       Description=Fleet MySQL
+      # Never start on the bare root disk if the data volume is missing.
+      RequiresMountsFor=/var/lib/fleet
       After=network-online.target
 
       [Container]
@@ -132,6 +134,8 @@ write_files:
     content: |
       [Unit]
       Description=Fleet Redis
+      # Never start on the bare root disk if the data volume is missing.
+      RequiresMountsFor=/var/lib/fleet
       After=network-online.target
 
       [Container]
@@ -150,6 +154,8 @@ write_files:
     content: |
       [Unit]
       Description=Fleet MDM Server
+      # Never start on the bare root disk if the data volume is missing.
+      RequiresMountsFor=/var/lib/fleet
       After=fleet-db.service fleet-redis.service
       Requires=fleet-db.service fleet-redis.service
 
@@ -185,6 +191,8 @@ write_files:
     content: |
       [Unit]
       Description=Caddy Reverse Proxy
+      # Never start on the bare root disk if the data volume is missing.
+      RequiresMountsFor=/var/lib/fleet
       After=network-online.target
 
       [Container]
@@ -203,6 +211,17 @@ write_files:
       WantedBy=multi-user.target
 
 runcmd:
+  # Mount the data volume at /var/lib/fleet. OpenTofu attaches it just after the
+  # server is created, so wait for the device. Hetzner formatted it at creation;
+  # never mkfs here, because a reattached volume already holds data. If it never
+  # appears, stop: the units' RequiresMountsFor keeps the stack off the root disk.
+  - |
+    dev=/dev/disk/by-id/scsi-0HC_Volume_${data_volume_id}
+    for i in $(seq 1 60); do [ -b "$dev" ] && break; sleep 5; done
+    [ -b "$dev" ] || { echo "data volume $dev not attached after 5 min" >&2; exit 1; }
+    mkdir -p /var/lib/fleet
+    grep -q "^$dev " /etc/fstab || echo "$dev /var/lib/fleet ext4 defaults,nofail 0 2" >> /etc/fstab
+    mount /var/lib/fleet
   - mkdir -p /var/lib/fleet/{mysql,redis,caddy,vulndb}
   # Register sensitive files as Podman secrets so Fleet's non-root container user
   # can read them via in-container tmpfs mounts rather than a host bind-mount.
