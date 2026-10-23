@@ -141,10 +141,10 @@ resource "hcloud_firewall" "fleet" {
   name = "${var.server_name}-fw"
 
   rule {
-    direction  = "in"
-    protocol   = "tcp"
-    port       = "22"
-    source_ips = ["0.0.0.0/0", "::/0"]
+    direction   = "in"
+    protocol    = "tcp"
+    port        = "22"
+    source_ips  = var.admin_cidrs
     description = "SSH"
   }
   rule {

@@ -14,12 +14,38 @@ variable "domain" {
   description = "Fleet MDM public domain — Caddy requests a TLS cert for this hostname"
   type        = string
   default     = "fleet.example.com"
+
+  validation {
+    condition     = can(regex("^[a-z0-9]([a-z0-9-]{0,61}[a-z0-9])?(\\.[a-z0-9]([a-z0-9-]{0,61}[a-z0-9])?)+$", var.domain))
+    error_message = "domain must be a valid fully-qualified domain name (e.g. fleet.example.com)"
+  }
 }
 
 variable "admin_email" {
   description = "Email address for Let's Encrypt cert expiry notifications"
   type        = string
   default     = "admin@example.com"
+
+  validation {
+    condition     = can(regex("^[^@\\s]+@[^@\\s]+\\.[^@\\s]+$", var.admin_email))
+    error_message = "admin_email must be a valid email address"
+  }
+}
+
+variable "admin_cidrs" {
+  description = <<-EOT
+    CIDRs allowed to reach port 22 (SSH). Set to your own IP(s) to restrict
+    access. Accepts IPv4 and IPv6 ranges. Example: ["203.0.113.5/32", "2001:db8::/32"]
+    Setting this to ["0.0.0.0/0", "::/0"] leaves SSH open to the world — use
+    only for initial setup or when your IP is dynamic.
+  EOT
+  type    = list(string)
+  default = null
+
+  validation {
+    condition     = var.admin_cidrs != null
+    error_message = "admin_cidrs must be set explicitly. Use [\"0.0.0.0/0\", \"::/0\"] to allow all IPs (not recommended for production)."
+  }
 }
 
 # ── Server ────────────────────────────────────────────────────────────────────
@@ -34,6 +60,11 @@ variable "server_type" {
   EOT
   type    = string
   default = "cpx22"
+
+  validation {
+    condition     = contains(["cx22", "cx32", "cx42", "cx52", "cpx11", "cpx21", "cpx22", "cpx31", "cpx41", "cpx51", "cax11", "cax21", "cax31", "cax41", "cx23", "cx33", "cx43", "cx53"], var.server_type)
+    error_message = "server_type must be a valid Hetzner server type (e.g. cpx22, cx23, cax21)"
+  }
 }
 
 variable "location" {
@@ -57,6 +88,11 @@ variable "fleet_version" {
   description = "Fleet Docker image tag. Pin to a specific release — 'latest' tracks development builds."
   type        = string
   default     = "v4.92.3"
+
+  validation {
+    condition     = can(regex("^v[0-9]+\\.[0-9]+\\.[0-9]+$", var.fleet_version))
+    error_message = "fleet_version must match vX.Y.Z (e.g. v4.92.3)"
+  }
 }
 
 variable "mysql_version" {
@@ -100,4 +136,3 @@ variable "s3_secret_key" {
   default     = ""
   sensitive   = true
 }
-
