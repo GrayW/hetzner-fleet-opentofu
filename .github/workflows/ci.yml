@@ -22,19 +22,17 @@ jobs:
         # Minimum supported release, and whatever is newest.
         tofu_version: ["1.9.0", "latest"]
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
 
-      - uses: opentofu/setup-opentofu@v1
+      - uses: opentofu/setup-opentofu@v2
         with:
           tofu_version: ${{ matrix.tofu_version }}
 
       - name: Format check
         run: tofu fmt -check -recursive -diff
 
-      # TODO: once .terraform.lock.hcl is committed (#17), add -lockfile=readonly
-      # so CI fails if provider versions drift from the committed lock file.
       - name: Init (no backend)
-        run: tofu init -backend=false -input=false
+        run: tofu init -backend=false -input=false -lockfile=readonly
 
       - name: Validate
         run: tofu validate
@@ -43,7 +41,7 @@ jobs:
     name: tflint
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
       - uses: terraform-linters/setup-tflint@v4
       - name: Run tflint
         run: tflint --format compact
@@ -52,7 +50,7 @@ jobs:
     name: no secrets or state committed
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
       - name: Check for files that must never be committed
         run: |
           bad=$(git ls-files | grep -E '(\.tfstate(\.backup)?$|(^|/)terraform\.tfvars$|(^|/)\.fleet_ed25519$|\.auto\.tfvars$)' || true)

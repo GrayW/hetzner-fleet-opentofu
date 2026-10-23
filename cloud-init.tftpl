@@ -91,7 +91,7 @@ write_files:
       }
 
   # DB migration helper — ExecStartPre for fleet-server.service.
-  # Exits non-zero if MariaDB isn't ready; systemd Restart=on-failure retries.
+  # Exits non-zero if MySQL isn't ready; systemd Restart=on-failure retries.
   # --entrypoint is set explicitly so this works regardless of what the image
   # declares as ENTRYPOINT (some Fleet builds ship with no ENTRYPOINT).
   - path: /usr/local/bin/fleet-migrate
@@ -115,13 +115,11 @@ write_files:
       After=network-online.target
 
       [Container]
-      Image=docker.io/library/mysql:8.0
+      Image=docker.io/library/mysql:${mysql_version}
       ContainerName=fleet-db
       EnvironmentFile=/etc/fleet/db.env
       Volume=/var/lib/fleet/mysql:/var/lib/mysql:Z
       Network=fleet.network
-      # Fleet is tested against MySQL 8.0; use native auth so Fleet's Go driver connects cleanly
-      Exec=--default-authentication-plugin=mysql_native_password
 
       [Service]
       Restart=always
@@ -137,7 +135,7 @@ write_files:
       After=network-online.target
 
       [Container]
-      Image=docker.io/library/redis:7-alpine
+      Image=docker.io/library/redis:${redis_version}
       ContainerName=fleet-redis
       Network=fleet.network
       Volume=/var/lib/fleet/redis:/data:Z

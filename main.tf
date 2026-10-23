@@ -35,7 +35,7 @@ provider "hcloud" {
 # Placeholder credentials are used when S3 is not configured so provider
 # init doesn't fail; no API calls are made in that case (count = 0 resources).
 provider "aws" {
-  alias      = "hetzner_s3"
+  alias = "hetzner_s3"
   # Hetzner S3 region must equal the datacenter location name (nbg1, fsn1, hel1…)
   region     = var.location
   access_key = var.s3_access_key != "" ? var.s3_access_key : "placeholder"
@@ -141,30 +141,30 @@ resource "hcloud_firewall" "fleet" {
   name = "${var.server_name}-fw"
 
   rule {
-    direction  = "in"
-    protocol   = "tcp"
-    port       = "22"
-    source_ips = ["0.0.0.0/0", "::/0"]
+    direction   = "in"
+    protocol    = "tcp"
+    port        = "22"
+    source_ips  = var.admin_cidrs
     description = "SSH"
   }
   rule {
-    direction  = "in"
-    protocol   = "tcp"
-    port       = "80"
-    source_ips = ["0.0.0.0/0", "::/0"]
+    direction   = "in"
+    protocol    = "tcp"
+    port        = "80"
+    source_ips  = ["0.0.0.0/0", "::/0"]
     description = "HTTP — required for ACME challenges"
   }
   rule {
-    direction  = "in"
-    protocol   = "tcp"
-    port       = "443"
-    source_ips = ["0.0.0.0/0", "::/0"]
+    direction   = "in"
+    protocol    = "tcp"
+    port        = "443"
+    source_ips  = ["0.0.0.0/0", "::/0"]
     description = "HTTPS"
   }
   rule {
-    direction  = "in"
-    protocol   = "icmp"
-    source_ips = ["0.0.0.0/0", "::/0"]
+    direction   = "in"
+    protocol    = "icmp"
+    source_ips  = ["0.0.0.0/0", "::/0"]
     description = "ICMP ping"
   }
 }
@@ -177,23 +177,25 @@ locals {
   s3_endpoint   = "https://${var.location}.your-objectstorage.com"
 
   cloud_init = templatefile("${path.module}/cloud-init.tftpl", {
-    mysql_pw      = random_password.mysql.result
-    mysql_root_pw = random_password.mysql_root.result
-    fleet_jwt     = random_password.fleet_jwt.result
+    mysql_pw           = random_password.mysql.result
+    mysql_root_pw      = random_password.mysql_root.result
+    fleet_jwt          = random_password.fleet_jwt.result
     enroll_secret      = random_bytes.enroll_secret.hex
     fleet_version      = var.fleet_version
+    mysql_version      = var.mysql_version
+    redis_version      = var.redis_version
     fleet_license_key  = var.fleet_license_key
     server_private_key = random_bytes.server_private_key.hex
     wstep_cert         = tls_self_signed_cert.wstep.cert_pem
     wstep_key          = tls_private_key.wstep.private_key_pem
     domain             = var.domain
     admin_email        = var.admin_email
-    s3_configured = local.s3_configured
-    s3_bucket     = local.s3_bucket
-    s3_access_key = var.s3_access_key
-    s3_secret_key = var.s3_secret_key
-    s3_endpoint   = local.s3_endpoint
-    s3_region     = var.location
+    s3_configured      = local.s3_configured
+    s3_bucket          = local.s3_bucket
+    s3_access_key      = var.s3_access_key
+    s3_secret_key      = var.s3_secret_key
+    s3_endpoint        = local.s3_endpoint
+    s3_region          = var.location
   })
 }
 
@@ -227,7 +229,7 @@ resource "hcloud_server" "fleet" {
     ipv6_enabled = true
   }
 
-  # Server replacement destroys persistent data (MariaDB volumes).
+  # Server replacement destroys persistent data (MySQL volumes).
   # For deliberate replacement: tofu taint hcloud_server.fleet
   lifecycle {
     ignore_changes = [user_data] # re-apply doesn't re-run cloud-init
