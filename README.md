@@ -107,6 +107,7 @@ All variables have safe defaults.
 | `fleet_license_key` | `""` | Fleet Premium license. Leave empty for Community Edition |
 | `s3_access_key` | `""` | Hetzner Object Storage key (optional — enables software packages) |
 | `s3_secret_key` | `""` | Hetzner Object Storage secret |
+| `protect_resources` | `true` | Hetzner delete/rebuild protection. Set `false` and apply before `tofu destroy` |
 
 > **Server type note:** If `tofu apply` fails with `resource_unavailable`, try `cx23`.
 
