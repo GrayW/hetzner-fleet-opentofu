@@ -31,10 +31,8 @@ jobs:
       - name: Format check
         run: tofu fmt -check -recursive -diff
 
-      # TODO: once .terraform.lock.hcl is committed (#17), add -lockfile=readonly
-      # so CI fails if provider versions drift from the committed lock file.
       - name: Init (no backend)
-        run: tofu init -backend=false -input=false
+        run: tofu init -backend=false -input=false -lockfile=readonly
 
       - name: Validate
         run: tofu validate
