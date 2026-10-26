@@ -16,11 +16,11 @@ const type = (name, locs, m, extra = {}) => ({
 });
 
 export const typesPage1 = {
-  server_types: [type('cpx22', LOCS, 10), type('cx23', EU, 5), type('cpx32', LOCS, 20), type('ccx13', LOCS, 12), type('cax11', EU, 4)],
+  server_types: [type('cpx22', LOCS, 10), type('cx23', EU, 5), type('cpx32', LOCS, 20), type('ccx13', LOCS, 12), type('cax11', EU, 4, { architecture: 'arm' })],
   meta: { pagination: { page: 1, next_page: 2 } },
 };
 export const typesPage2 = {
-  server_types: [type('old1', LOCS, 1, { deprecated: true }), type('cpx42', LOCS, 40)],
+  server_types: [type('old1', LOCS, 1, { deprecated: true }), type('cpx42', LOCS, 40), type('cx12', EU, 3, { memory: 2 })],
   meta: { pagination: { page: 2, next_page: null } },
 };
 
