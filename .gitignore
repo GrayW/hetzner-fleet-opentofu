@@ -20,3 +20,7 @@ override.tf.json
 
 # Generated SSH private key (written by OpenTofu next to the config)
 .fleet_ed25519
+
+#Pages Data
+web/data/
+web/dist/
