@@ -137,11 +137,25 @@ variable "s3_secret_key" {
   sensitive   = true
 }
 
+# ── Data volume ───────────────────────────────────────────────────────────────
+
+variable "data_volume_size" {
+  description = "Size in GB of the data volume mounted at /var/lib/fleet. Can be increased later, never decreased."
+  type        = number
+  default     = 20
+
+  validation {
+    condition     = var.data_volume_size >= 10 && var.data_volume_size <= 10240 && floor(var.data_volume_size) == var.data_volume_size
+    error_message = "data_volume_size must be a whole number of GB between 10 and 10240 (Hetzner limits)."
+  }
+}
+
 # ── Protection ────────────────────────────────────────────────────────────────
 
 variable "protect_resources" {
   description = <<-EOT
-    Enable Hetzner delete and rebuild protection on the server. While true,
+    Enable Hetzner delete and rebuild protection on the server and
+    delete protection on the data volume. While true,
     `tofu destroy` and server replacement fail. To tear down: set to false,
     run `tofu apply`, then `tofu destroy`.
   EOT
