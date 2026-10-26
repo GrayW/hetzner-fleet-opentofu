@@ -31,6 +31,11 @@ explicitly and include upgrade notes.
   New `backup_*` and `restic_version` variables, a `backups` output and a
   `next_steps` warning while disabled. `tofu plan` warns if the repo is in
   the server's location (#4).
+- Secrets recovery: sensitive `server_private_key` and `wstep_key` outputs,
+  `scripts/export-secrets.sh` (from state or from the latest restic backup,
+  writing a `recovery.tfvars`), override variables `fleet_server_private_key`,
+  `wstep_cert_pem`, `wstep_key_pem` and `enroll_secret`, and
+  `docs/secrets-recovery.md` (#60).
 
 ### Changed
 - **Breaking:** `tofu destroy` and server replacement now fail by default.

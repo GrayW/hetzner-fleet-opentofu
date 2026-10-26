@@ -120,6 +120,7 @@ All variables have safe defaults.
 | `backup_healthcheck_url` | `""` | Optional dead-man's-switch ping URL |
 | `backup_keep_daily` / `_weekly` / `_monthly` | `7` / `4` / `6` | Retention |
 | `restic_version` | `0.18.0` | restic image tag |
+| `fleet_server_private_key`, `wstep_cert_pem`, `wstep_key_pem`, `enroll_secret` | `""` | Recovery overrides only. See [Secrets recovery](#secrets-recovery) |
 | `protect_resources` | `true` | Hetzner delete/rebuild protection on the server, delete protection on the volume. Set `false` and apply before `tofu destroy` |
 
 > **Server type note:** If `tofu apply` fails with `resource_unavailable`, try `cx23`.
@@ -138,6 +139,7 @@ All variables have safe defaults.
 | `enroll_secret` | osquery enroll secret (sensitive — use `tofu output -raw enroll_secret`) |
 | `wstep_cert` | Windows MDM WSTEP CA certificate (PEM) — back this up |
 | `backups` | Off-host backup status (`DISABLED` until configured) |
+| `server_private_key`, `wstep_key` | Sensitive. Exported by `scripts/export-secrets.sh` |
 | `dns_records` | Summary of DNS records to create |
 | `next_steps` | Post-deploy checklist |
 
@@ -200,6 +202,24 @@ tofu apply
 ssh -i .fleet_ed25519 root@<ip> 'systemctl start fleet-backup && journalctl -u fleet-backup -n 30'
 ssh -i .fleet_ed25519 root@<ip> 'systemctl list-timers fleet-backup.timer'
 ```
+
+---
+
+## Secrets recovery
+
+Enrolled devices trust secrets generated at deploy time: the Fleet server
+private key, the Windows MDM (WSTEP) CA and the enroll secret. **If these are
+lost, a database backup can't restore working MDM.** They live in the state
+and in the nightly backup. After deploying, export a third copy for your
+password manager:
+
+```bash
+scripts/export-secrets.sh state ~/fleet-secrets
+```
+
+[docs/secrets-recovery.md](docs/secrets-recovery.md) covers recovering from the
+backups alone when the state is lost, using the `fleet_server_private_key`,
+`wstep_cert_pem`, `wstep_key_pem` and `enroll_secret` override variables.
 
 ---
 

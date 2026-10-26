@@ -142,6 +142,19 @@ resource "tls_self_signed_cert" "wstep" {
   ]
 }
 
+# ── Recovered secrets ─────────────────────────────────────────────────────────
+# Enrolled devices trust these four values. The *_override variables restore
+# them from an export or backup when the state that generated them is lost
+# (tls_* resources can't be imported). Empty means use the generated value.
+# See docs/secrets-recovery.md.
+
+locals {
+  server_private_key = var.fleet_server_private_key != "" ? var.fleet_server_private_key : random_bytes.server_private_key.hex
+  enroll_secret      = var.enroll_secret != "" ? var.enroll_secret : random_bytes.enroll_secret.hex
+  wstep_cert         = var.wstep_cert_pem != "" ? var.wstep_cert_pem : tls_self_signed_cert.wstep.cert_pem
+  wstep_key          = var.wstep_key_pem != "" ? var.wstep_key_pem : tls_private_key.wstep.private_key_pem
+}
+
 resource "hcloud_ssh_key" "fleet" {
   name       = "${var.server_name}-key"
   public_key = tls_private_key.fleet.public_key_openssh
@@ -202,14 +215,14 @@ locals {
     mysql_pw           = random_password.mysql.result
     mysql_root_pw      = random_password.mysql_root.result
     fleet_jwt          = random_password.fleet_jwt.result
-    enroll_secret      = random_bytes.enroll_secret.hex
+    enroll_secret      = local.enroll_secret
     fleet_version      = var.fleet_version
     mysql_version      = var.mysql_version
     redis_version      = var.redis_version
     fleet_license_key  = var.fleet_license_key
-    server_private_key = random_bytes.server_private_key.hex
-    wstep_cert         = tls_self_signed_cert.wstep.cert_pem
-    wstep_key          = tls_private_key.wstep.private_key_pem
+    server_private_key = local.server_private_key
+    wstep_cert         = local.wstep_cert
+    wstep_key          = local.wstep_key
     domain             = var.domain
     admin_email        = var.admin_email
     s3_configured      = local.s3_configured
