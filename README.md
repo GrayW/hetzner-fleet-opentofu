@@ -119,7 +119,7 @@ All variables have safe defaults.
 
 | Output | Description |
 |---|---|
-| `ipv4_address` | Server IPv4 — add as DNS `A` record |
+| `ipv4_address` | Server IPv4 (persistent Primary IP) — add as DNS `A` record |
 | `ipv6_address` | Server IPv6 — add as DNS `AAAA` record |
 | `data_volume_device` | Device path of the data volume on the server |
 | `ssh_command` | Ready-to-paste SSH command using the generated key |
@@ -194,8 +194,9 @@ tofu apply -var protect_resources=false
 ```
 
 The volume is reattached to the new server and mounted at `/var/lib/fleet`.
-Set `protect_resources` back to `true` afterwards. The new server gets new
-IP addresses, so update DNS.
+Set `protect_resources` back to `true` afterwards. The server's Primary IPs
+are kept and reassigned, so DNS doesn't change. A full `tofu destroy` deletes
+the IPs too.
 
 Then remove the DNS records for your domain manually.
 

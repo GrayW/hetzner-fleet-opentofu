@@ -4,7 +4,7 @@ terraform {
   required_providers {
     hcloud = {
       source  = "hetznercloud/hcloud"
-      version = "~> 1.49"
+      version = "~> 1.70" # hcloud_primary_ip.location
     }
     aws = {
       source  = "hashicorp/aws"
@@ -219,6 +219,27 @@ resource "hcloud_volume" "fleet_data" {
   delete_protection = var.protect_resources
 }
 
+# ── Primary IPs ───────────────────────────────────────────────────────────────
+# Explicit Primary IPs outlive the server (auto_delete = false), so a
+# replacement server keeps the same addresses and DNS doesn't change.
+# Assignment is set on the server side (public_net) to avoid a dependency cycle.
+
+resource "hcloud_primary_ip" "ipv4" {
+  name              = "${var.server_name}-ipv4"
+  type              = "ipv4"
+  location          = var.location
+  auto_delete       = false
+  delete_protection = var.protect_resources
+}
+
+resource "hcloud_primary_ip" "ipv6" {
+  name              = "${var.server_name}-ipv6"
+  type              = "ipv6"
+  location          = var.location
+  auto_delete       = false
+  delete_protection = var.protect_resources
+}
+
 # ── Image ─────────────────────────────────────────────────────────────────────
 
 data "hcloud_image" "opensuse_leap" {
@@ -242,10 +263,12 @@ resource "hcloud_server" "fleet" {
   delete_protection  = var.protect_resources
   rebuild_protection = var.protect_resources
 
-  # Explicitly enable both stacks — Hetzner assigns a /32 IPv4 and a /64 IPv6.
+  # Both stacks, on the persistent Primary IPs: a /32 IPv4 and a /64 IPv6.
   public_net {
     ipv4_enabled = true
+    ipv4         = hcloud_primary_ip.ipv4.id
     ipv6_enabled = true
+    ipv6         = hcloud_primary_ip.ipv6.id
   }
 
   # Persistent data lives on hcloud_volume.fleet_data, which is reattached to

@@ -16,6 +16,9 @@ explicitly and include upgrade notes.
   replacement. New `data_volume_size` variable (default 20 GB) and
   `data_volume_id` / `data_volume_device` outputs. Container units refuse to
   start if the volume isn't mounted (#58).
+- Explicit Primary IPs (`hcloud_primary_ip.ipv4` / `.ipv6`) with
+  `auto_delete = false` and delete protection following `protect_resources`,
+  so a replacement server keeps its addresses and DNS (#59).
 
 ### Changed
 - **Breaking:** `tofu destroy` and server replacement now fail by default.
@@ -25,6 +28,10 @@ explicitly and include upgrade notes.
   the data volume but doesn't move data onto it. Follow
   [docs/upgrade-0.2.md](docs/upgrade-0.2.md) to copy `/var/lib/fleet` over
   (a few minutes of downtime).
+- **Upgrade required for existing servers:** import the server's existing
+  Primary IPs **before** the first v0.2.0 apply, or tofu moves the server to
+  new addresses. Steps in [docs/upgrade-0.2.md](docs/upgrade-0.2.md#primary-ips-59).
+- hcloud provider constraint raised to `~> 1.70`.
 
 ## [0.1.0] - 2026-10-23
 
