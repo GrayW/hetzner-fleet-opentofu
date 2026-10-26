@@ -263,6 +263,10 @@ resource "hcloud_server" "fleet" {
   delete_protection  = var.protect_resources
   rebuild_protection = var.protect_resources
 
+  # Hetzner daily disk snapshots (7 kept, ~20% of server price). Secondary net:
+  # they don't cover the data volume; off-host MySQL backups are the primary.
+  backups = var.server_backups
+
   # Both stacks, on the persistent Primary IPs: a /32 IPv4 and a /64 IPv6.
   public_net {
     ipv4_enabled = true

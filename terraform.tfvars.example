@@ -17,6 +17,7 @@ hetzner_token = "your-hetzner-api-token"
 # domain            = "fleet.example.com"
 # admin_email       = "admin@example.com"
 # protect_resources = true                # Set false, apply, then destroy to tear down
+# server_backups    = false               # Hetzner daily server-disk backups, ~+20% server cost
 
 # Object Storage — leave empty to skip (can add later with tofu apply)
 # S3 region is derived from var.location automatically (Hetzner requirement).
