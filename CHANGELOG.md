@@ -19,6 +19,9 @@ explicitly and include upgrade notes.
 - Explicit Primary IPs (`hcloud_primary_ip.ipv4` / `.ipv6`) with
   `auto_delete = false` and delete protection following `protect_resources`,
   so a replacement server keeps its addresses and DNS (#59).
+- `server_backups` variable (default `false`) for Hetzner's automated daily
+  server-disk backups, about 20% extra on the server price. They don't cover
+  the data volume (#62).
 
 ### Changed
 - **Breaking:** `tofu destroy` and server replacement now fail by default.

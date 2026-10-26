@@ -162,3 +162,13 @@ variable "protect_resources" {
   type        = bool
   default     = true
 }
+
+variable "server_backups" {
+  description = <<-EOT
+    Enable Hetzner automated daily backups of the server disk (7 retained).
+    Costs about 20% of the server price. They cover the OS and config only,
+    not the data volume at /var/lib/fleet.
+  EOT
+  type        = bool
+  default     = false
+}

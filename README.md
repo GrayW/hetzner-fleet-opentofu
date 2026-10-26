@@ -109,6 +109,7 @@ All variables have safe defaults.
 | `s3_access_key` | `""` | Hetzner Object Storage key (optional — enables software packages) |
 | `s3_secret_key` | `""` | Hetzner Object Storage secret |
 | `data_volume_size` | `20` | Data volume size in GB (min 10). Can grow later, never shrink |
+| `server_backups` | `false` | Hetzner daily server-disk backups (~20% extra on the server price). Doesn't cover the data volume |
 | `protect_resources` | `true` | Hetzner delete/rebuild protection on the server, delete protection on the volume. Set `false` and apply before `tofu destroy` |
 
 > **Server type note:** If `tofu apply` fails with `resource_unavailable`, try `cx23`.
