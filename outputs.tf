@@ -88,5 +88,11 @@ output "next_steps" {
          ssh -i .fleet_ed25519 root@${hcloud_server.fleet.ipv4_address} 'cloud-init status --wait'
     7. Fleet logs:
          ssh -i .fleet_ed25519 root@${hcloud_server.fleet.ipv4_address} 'podman logs -f fleet-server'
+    8. ${local.backup_enabled ? "Backups: nightly at 03:00 UTC. Test one now:\n         ssh -i .fleet_ed25519 root@${hcloud_server.fleet.ipv4_address} 'systemctl start fleet-backup && journalctl -u fleet-backup -n 20'" : "WARNING: no off-host backups. Losing the server's location loses all\n       Fleet data. Set backup_repository (see README, Backups)."}
   EOT
+}
+
+output "backups" {
+  description = "Off-host backup status"
+  value       = local.backup_enabled ? "enabled (restic, nightly 03:00 UTC)" : "DISABLED: no off-host backups; set backup_repository"
 }

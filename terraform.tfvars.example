@@ -27,3 +27,9 @@ hetzner_token = "your-hetzner-api-token"
 # S3 region is derived from var.location automatically (Hetzner requirement).
 # s3_access_key = "your-hetzner-s3-access-key"
 # s3_secret_key = "your-hetzner-s3-secret-key"
+
+# Off-host backups (restic) — strongly recommended. Use a bucket in a
+# different location from the server. Pass the secrets as TF_VAR_* env vars.
+# backup_repository      = "s3:https://hel1.your-objectstorage.com/my-fleet-backups/fleet"
+# backup_healthcheck_url = "https://hc-ping.com/<uuid>"
+#   export TF_VAR_backup_password=… TF_VAR_backup_access_key=… TF_VAR_backup_secret_key=…

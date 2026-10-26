@@ -114,6 +114,12 @@ All variables have safe defaults.
 | `s3_secret_key` | `""` | Hetzner Object Storage secret |
 | `data_volume_size` | `20` | Data volume size in GB (min 10). Can grow later, never shrink |
 | `server_backups` | `false` | Hetzner daily server-disk backups (~20% extra on the server price). Doesn't cover the data volume |
+| `backup_repository` | `""` | restic repo for nightly off-host backups. Empty disables them. See [Backups](#backups) |
+| `backup_access_key` / `backup_secret_key` | `""` | Keys for the backup bucket (separate from `s3_*`) |
+| `backup_password` | `""` | restic password (min 16 chars). Keep it outside the state |
+| `backup_healthcheck_url` | `""` | Optional dead-man's-switch ping URL |
+| `backup_keep_daily` / `_weekly` / `_monthly` | `7` / `4` / `6` | Retention |
+| `restic_version` | `0.18.0` | restic image tag |
 | `protect_resources` | `true` | Hetzner delete/rebuild protection on the server, delete protection on the volume. Set `false` and apply before `tofu destroy` |
 
 > **Server type note:** If `tofu apply` fails with `resource_unavailable`, try `cx23`.
@@ -131,8 +137,69 @@ All variables have safe defaults.
 | `fleet_url` | Fleet HTTPS URL |
 | `enroll_secret` | osquery enroll secret (sensitive — use `tofu output -raw enroll_secret`) |
 | `wstep_cert` | Windows MDM WSTEP CA certificate (PEM) — back this up |
+| `backups` | Off-host backup status (`DISABLED` until configured) |
 | `dns_records` | Summary of DNS records to create |
 | `next_steps` | Post-deploy checklist |
+
+---
+
+## Backups
+
+Off-host backups are **off by default**. Until you set `backup_repository`,
+`tofu output backups` says `DISABLED` and losing the server's location loses
+all Fleet data.
+
+When enabled, a systemd timer runs nightly at 03:00 UTC (up to 10 minutes
+of random delay; missed runs catch up after boot):
+
+1. `mysqldump --single-transaction` of the `fleet` database
+2. one [restic](https://restic.net) snapshot of the dump plus `/etc/fleet`
+   (the Fleet server key, WSTEP CA and enroll secret a restore needs)
+3. retention: 7 daily, 4 weekly, 6 monthly (`backup_keep_*` variables)
+
+restic encrypts everything with `backup_password` before upload.
+
+### Set up
+
+1. Create a bucket in Hetzner Object Storage in a **different location** from
+   the server (`tofu plan` warns if it's the same). Hetzner keys can access
+   every bucket in their project, so for real separation put the bucket in a
+   separate Hetzner project with its own keys.
+2. Store the restic password and bucket keys in a password manager. With those
+   two you can restore even if this state is lost; without the password the
+   backups are unreadable.
+3. Set the variables, secrets via the environment:
+
+   ```bash
+   export TF_VAR_backup_password='…' TF_VAR_backup_access_key='…' TF_VAR_backup_secret_key='…'
+   ```
+
+   ```hcl
+   backup_repository      = "s3:https://hel1.your-objectstorage.com/my-fleet-backups/fleet"
+   backup_healthcheck_url = "https://hc-ping.com/<uuid>"   # optional, recommended
+   ```
+
+4. Optional but recommended: create a daily check at healthchecks.io (or an
+   Uptime Kuma push monitor) and set `backup_healthcheck_url`. The script pings
+   `/start`, then success or `/fail`, so both failed and missed runs alert.
+
+Backup settings are written by cloud-init when the server is created. To turn
+backups on or change them for an existing server, replace the server. Data
+and IPs are kept (see [Teardown](#teardown)):
+
+```bash
+tofu apply -var protect_resources=false
+tofu taint hcloud_server.fleet
+tofu apply -var protect_resources=false
+tofu apply
+```
+
+### Check
+
+```bash
+ssh -i .fleet_ed25519 root@<ip> 'systemctl start fleet-backup && journalctl -u fleet-backup -n 30'
+ssh -i .fleet_ed25519 root@<ip> 'systemctl list-timers fleet-backup.timer'
+```
 
 ---
 

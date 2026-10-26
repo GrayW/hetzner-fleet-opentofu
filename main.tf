@@ -193,8 +193,10 @@ resource "hcloud_firewall" "fleet" {
 
 locals {
   s3_configured = var.s3_access_key != ""
-  s3_bucket     = "${var.server_name}-packages"
-  s3_endpoint   = "https://${var.location}.your-objectstorage.com"
+  # Off-host backups are opt-in; see variables.tf.
+  backup_enabled = var.backup_repository != ""
+  s3_bucket      = "${var.server_name}-packages"
+  s3_endpoint    = "https://${var.location}.your-objectstorage.com"
 
   cloud_init = templatefile("${path.module}/cloud-init.tftpl", {
     mysql_pw           = random_password.mysql.result
@@ -217,6 +219,15 @@ locals {
     s3_endpoint        = local.s3_endpoint
     s3_region          = var.location
     data_volume_id     = hcloud_volume.fleet_data.id
+    backup_enabled     = local.backup_enabled
+    backup_repository  = var.backup_repository
+    backup_access_key  = var.backup_access_key
+    backup_secret_key  = var.backup_secret_key
+    backup_password    = var.backup_password
+    backup_keep        = "--keep-daily ${var.backup_keep_daily} --keep-weekly ${var.backup_keep_weekly} --keep-monthly ${var.backup_keep_monthly}"
+    backup_hc_url      = var.backup_healthcheck_url
+    restic_version     = var.restic_version
+    server_name        = var.server_name
   })
 }
 
@@ -258,6 +269,14 @@ resource "hcloud_primary_ip" "ipv6" {
   location          = var.location
   auto_delete       = false
   delete_protection = var.protect_resources
+}
+
+# Backups next to the server don't survive the loss of that location.
+check "backup_location" {
+  assert {
+    condition     = !strcontains(var.backup_repository, "${var.location}.your-objectstorage.com")
+    error_message = "backup_repository is in the same location as the server (${var.location}). Use Object Storage in a different location."
+  }
 }
 
 # ── Image ─────────────────────────────────────────────────────────────────────
