@@ -203,6 +203,13 @@ ssh -i .fleet_ed25519 root@<ip> 'systemctl start fleet-backup && journalctl -u f
 ssh -i .fleet_ed25519 root@<ip> 'systemctl list-timers fleet-backup.timer'
 ```
 
+### Restore
+
+`scripts/restore.sh` restores the latest (or a given) snapshot onto the
+server and reports how long it took. [docs/restore.md](docs/restore.md)
+explains which recovery fits which failure, and has the restore drill to run
+before you trust the backups.
+
 ---
 
 ## Secrets recovery
