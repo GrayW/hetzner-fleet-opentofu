@@ -8,6 +8,15 @@ explicitly and include upgrade notes.
 
 ## [Unreleased]
 
+### Added
+- `protect_resources` variable (default `true`) that enables Hetzner delete and
+  rebuild protection on the server (#15).
+
+### Changed
+- **Breaking:** `tofu destroy` and server replacement now fail by default.
+  Upgrade note: the next `tofu apply` turns protection on in place (no server
+  restart). To tear down, set `protect_resources = false`, apply, then destroy.
+
 ## [0.1.0] - 2026-10-23
 
 First tagged release. A working single-server Fleet deployment on Hetzner Cloud
