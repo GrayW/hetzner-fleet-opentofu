@@ -1,0 +1,56 @@
+name: Config helper site
+
+on:
+  push:
+    branches: [main]
+    paths: ['web/**', '.github/workflows/web.yml']
+  schedule:
+    # Weekdays at 17:00 UTC, after the ECB publishes its daily reference rates.
+    - cron: '0 17 * * 1-5'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  pages: write
+  id-token: write
+
+concurrency:
+  group: pages
+  cancel-in-progress: false
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+
+      - name: Unit tests
+        run: node --test web/test/*.test.mjs
+
+      # If this step fails (Hetzner or the ECB changed, a wording check broke, a price is
+      # missing), the job stops here, nothing is deployed, and the last good site stays live.
+      - name: Refresh prices, availability and exchange rates
+        run: node web/scripts/refresh-data.mjs
+        env:
+          HCLOUD_TOKEN: ${{ secrets.HCLOUD_READONLY_TOKEN }}
+
+      - name: Build page
+        run: node web/scripts/build.mjs
+
+      - uses: actions/configure-pages@v5
+      - uses: actions/upload-pages-artifact@v3
+        with:
+          path: web/dist
+
+  deploy:
+    needs: build
+    runs-on: ubuntu-latest
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    steps:
+      - id: deployment
+        uses: actions/deploy-pages@v4

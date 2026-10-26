@@ -1,0 +1,844 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<!-- The browser enforces this: no network requests of any kind can leave this page. -->
+<meta http-equiv="Content-Security-Policy" content="default-src 'none'; script-src 'unsafe-inline'; style-src 'unsafe-inline'; img-src data:; connect-src 'none'; base-uri 'none'; form-action 'none'">
+<meta name="referrer" content="no-referrer">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Fleet on Hetzner: config helper</title>
+<style>
+:root{
+  color-scheme: light dark;
+  --bg:#F3F6F4; --surface:#FFFFFF; --ink:#15212B; --muted:#51606C;
+  --line:#D3DBE0; --line-strong:#8C9BA6;
+  --accent:#0B7A63; --accent-ink:#FFFFFF; --accent-soft:#E3F3EE;
+  --warn-bg:#FFF3D1; --warn-ink:#4F3A00; --warn-line:#D9B84E;
+  --err:#B3261E;
+  --pane:#13222D; --pane-ink:#DCE8EE; --pane-dim:#8197A5; --pane-line:#273C4D; --pane-flash:rgba(80,210,175,.30);
+  --serif:Charter,"Iowan Old Style","Palatino Linotype",Georgia,serif;
+  --sans:system-ui,-apple-system,"Segoe UI",Roboto,"Helvetica Neue",sans-serif;
+  --mono:ui-monospace,"SF Mono",Menlo,Consolas,"Liberation Mono",monospace;
+}
+@media (prefers-color-scheme: dark){
+  :root{
+    --bg:#0E151B; --surface:#16212A; --ink:#E6ECEF; --muted:#9BAAB6;
+    --line:#2A3844; --line-strong:#5F7381;
+    --accent:#4FD1B1; --accent-ink:#07261E; --accent-soft:#12342C;
+    --warn-bg:#3A2F10; --warn-ink:#F1DC9A; --warn-line:#7A6320;
+    --err:#FF8F86;
+    --pane:#0A1218; --pane-line:#24384A;
+  }
+}
+*{box-sizing:border-box}
+html{-webkit-text-size-adjust:100%}
+body{margin:0;background:var(--bg);color:var(--ink);font:16px/1.55 var(--sans)}
+a{color:var(--accent)}
+code{font-family:var(--mono);font-size:.9em;background:var(--accent-soft);padding:.05em .35em;border-radius:4px}
+:focus-visible{outline:3px solid var(--accent);outline-offset:2px}
+.sr{position:absolute;width:1px;height:1px;overflow:hidden;clip:rect(0 0 0 0);white-space:nowrap}
+
+.wrap{max-width:76rem;margin:0 auto;padding:clamp(1rem,3vw,2.25rem)}
+header.top{margin-bottom:1.75rem}
+h1{font:600 clamp(1.6rem,3.2vw,2.2rem)/1.2 var(--serif);letter-spacing:-.01em;margin:0 0 .5rem}
+.lede{max-width:60ch;color:var(--muted);margin:0 0 1rem}
+.trust{display:flex;flex-wrap:wrap;gap:.25rem .6rem;align-items:baseline;background:var(--accent-soft);
+  border:1px solid var(--line);border-radius:10px;padding:.7rem .95rem;max-width:48rem;margin:0}
+.linkbtn{font:inherit;background:none;border:0;padding:0;color:var(--accent);text-decoration:underline;cursor:pointer}
+#netResult{flex-basis:100%;font-size:.92rem}
+
+.layout{display:grid;grid-template-columns:minmax(0,36rem) minmax(0,1fr);gap:2rem;align-items:start}
+@media (max-width:60rem){.layout{grid-template-columns:minmax(0,1fr)}}
+
+.progress{margin-bottom:.75rem}
+#pmeta{color:var(--muted);font-size:.92rem;margin:0 0 .4rem}
+.bar{height:4px;background:var(--line);border-radius:2px;overflow:hidden}
+#barfill{display:block;height:100%;width:0;background:var(--accent);transition:width .25s ease}
+@media (prefers-reduced-motion:reduce){#barfill{transition:none}}
+
+.sheet{background:var(--surface);border:1px solid var(--line);border-radius:10px;padding:clamp(1.1rem,3vw,1.6rem)}
+.sheet h2{font:600 1.45rem/1.25 var(--serif);margin:0 0 .6rem}
+.sheet h2:focus{outline:none}
+.sheet h3{font:600 1.1rem/1.3 var(--serif);margin:1.6rem 0 .5rem}
+.sheet p{margin:.4rem 0 .9rem}
+
+.field{margin:1.1rem 0}
+.field label,legend{font-weight:600;display:block}
+fieldset{border:0;padding:0;margin:1.1rem 0}
+legend{padding:0;margin-bottom:.15rem}
+.hint{color:var(--muted);font-size:.92rem;margin:.1rem 0 .45rem !important}
+input[type=text],input[type=password]{width:100%;font:inherit;color:var(--ink);background:var(--surface);
+  border:1px solid var(--line-strong);border-radius:6px;padding:.65rem .75rem;min-height:44px}
+input[aria-invalid=true]{border-color:var(--err)}
+.err{color:var(--err);font-size:.92rem;margin:.35rem 0 0 !important}
+.pwrow{display:flex;gap:.5rem}
+.pwrow input{flex:1}
+
+.opts{display:grid;gap:.6rem;grid-template-columns:repeat(auto-fit,minmax(10.5rem,1fr));margin-top:.5rem}
+.opts.wide{grid-template-columns:1fr}
+.opt{position:relative;display:block;cursor:pointer}
+.opt input{position:absolute;opacity:0;inset:0;margin:0;cursor:pointer}
+.opt-body{display:block;height:100%;border:1px solid var(--line-strong);border-radius:6px;padding:.7rem .85rem}
+.opt-body strong{display:block}
+.opt-body .sub{display:block;color:var(--muted);font-size:.9rem}
+.opt-body .tag{display:inline-block;margin-top:.3rem;font-size:.82rem;color:var(--accent);font-weight:600}
+.opt input:checked + .opt-body{border-color:var(--accent);background:var(--accent-soft);box-shadow:inset 0 0 0 1px var(--accent)}
+.opt input:focus-visible + .opt-body{outline:3px solid var(--accent);outline-offset:2px}
+.opts.seg{grid-template-columns:repeat(auto-fit,minmax(12rem,1fr));margin:.2rem 0 1rem}
+
+.checks{list-style:none;padding:0;margin:.8rem 0}
+.checks li{margin:.5rem 0}
+.checks label,.tick{display:flex;gap:.7rem;align-items:flex-start;cursor:pointer}
+.checks input,.tick input{width:1.15rem;height:1.15rem;margin:.22rem 0 0;accent-color:var(--accent);flex:none}
+
+.note{background:var(--accent-soft);border:1px solid var(--line);border-radius:6px;padding:.6rem .8rem;font-size:.95rem}
+.warn{background:var(--warn-bg);color:var(--warn-ink);border:1px solid var(--warn-line);border-radius:6px;padding:.75rem .9rem;margin:.8rem 0}
+.warn p{margin:.2rem 0 !important}
+
+.nav{display:flex;gap:.75rem;margin-top:1.1rem;flex-wrap:wrap}
+.btn{font:inherit;font-weight:600;min-height:44px;padding:0 1.15rem;border-radius:6px;cursor:pointer;border:1px solid var(--accent)}
+.btn.primary{background:var(--accent);color:var(--accent-ink)}
+.btn.ghost{background:transparent;color:var(--ink);border-color:var(--line-strong)}
+.btn.small{min-height:44px;padding:0 .8rem;font-weight:500}
+.btn[hidden]{display:none}
+
+/* The live file pane */
+.file{background:var(--pane);color:var(--pane-ink);border:1px solid var(--pane-line);border-radius:10px;overflow:hidden}
+.side{position:sticky;top:1rem;display:grid;gap:1rem;max-height:calc(100vh - 2rem);overflow:auto;align-content:start}
+@media (max-width:60rem){.side{position:static;max-height:none;overflow:visible}}
+.cost{background:var(--surface);border:1px solid var(--line);border-radius:10px;padding:1rem 1.1rem}
+.chead{display:flex;justify-content:space-between;align-items:center;gap:.6rem;flex-wrap:wrap}
+.cost h2{font:600 1.05rem/1.3 var(--serif);margin:0}
+.cost select{font:inherit;color:var(--ink);background:var(--surface);border:1px solid var(--line-strong);border-radius:6px;min-height:40px;padding:0 .5rem;max-width:100%}
+dl#costRows{display:grid;grid-template-columns:1fr max-content;gap:.3rem 1rem;margin:.7rem 0 0}
+dl#costRows dt{color:var(--muted)}
+dl#costRows dd{margin:0;text-align:right;font-variant-numeric:tabular-nums}
+dl#costRows .tot{font-weight:600;color:var(--ink);border-top:1px solid var(--line);padding-top:.4rem;margin-top:.2rem}
+.cnote{color:var(--muted);font-size:.88rem;margin:.7rem 0 0}
+.tick input:disabled + span{opacity:.6}
+.fhead{display:flex;align-items:center;justify-content:space-between;gap:.6rem;padding:.6rem .8rem .6rem 1.1rem;border-bottom:1px solid var(--pane-line);flex-wrap:wrap}
+.fname{font:600 .92rem var(--mono)}
+.fbtns{display:flex;gap:.4rem}
+.pbtn{font:inherit;font-size:.9rem;color:var(--pane-ink);background:transparent;border:1px solid #3F5668;border-radius:6px;min-height:40px;padding:0 .85rem;cursor:pointer}
+.pbtn:disabled{opacity:.45;cursor:not-allowed}
+.pbtn.go{background:var(--accent);border-color:var(--accent);color:var(--accent-ink);font-weight:600}
+.pbtn.go:disabled{background:transparent;border-color:#3F5668;color:var(--pane-ink)}
+#preview{margin:0;padding:1rem 0;font:.88rem/1.7 var(--mono);overflow-x:auto}
+.ln{display:block;white-space:pre;padding:0 1.1rem}
+.ln.c{color:var(--pane-dim)}
+.ln.u{opacity:.55}
+.ln.flash{animation:flash .9s ease-out}
+@keyframes flash{from{background:var(--pane-flash)}to{background:transparent}}
+@media (prefers-reduced-motion:reduce){.ln.flash{animation:none}}
+.fstat{padding:.65rem 1.1rem;border-top:1px solid var(--pane-line);color:var(--pane-dim);font-size:.9rem}
+
+/* Result */
+dl#summary{display:grid;grid-template-columns:max-content 1fr;gap:.35rem 1.1rem;margin:.5rem 0 0}
+dl#summary dt{color:var(--muted)}
+dl#summary dd{margin:0;overflow-wrap:anywhere}
+ol.instr{list-style:none;counter-reset:s;padding:0;margin:.5rem 0 0}
+ol.instr > li{counter-increment:s;position:relative;border-top:1px solid var(--line);padding:1rem 0 .6rem 2.7rem}
+ol.instr > li::before{content:counter(s);position:absolute;left:0;top:1rem;width:1.9rem;height:1.9rem;border-radius:50%;
+  border:1.5px solid var(--accent);color:var(--accent);display:grid;place-items:center;font-weight:600;font-size:.92rem}
+ol.instr > li.done::before{background:var(--accent);color:var(--accent-ink)}
+ol.instr > li.done .ihead h4{color:var(--muted);text-decoration:line-through}
+.ihead{display:flex;justify-content:space-between;align-items:baseline;gap:1rem}
+.ihead h4{margin:0;font-size:1.02rem}
+.donelbl{display:flex;gap:.4rem;align-items:center;color:var(--muted);font-size:.92rem;cursor:pointer;white-space:nowrap}
+.donelbl input{accent-color:var(--accent);width:1.05rem;height:1.05rem}
+.code{position:relative;margin:.5rem 0 .8rem}
+.code pre{margin:0;background:var(--pane);color:var(--pane-ink);border:1px solid var(--pane-line);border-radius:6px;
+  padding:.8rem 5.2rem .8rem 1rem;font:.86rem/1.6 var(--mono);overflow-x:auto}
+.code pre code{background:none;padding:0;border-radius:0;color:inherit;font-size:inherit}
+.code .pbtn{position:absolute;top:.4rem;right:.4rem;min-height:36px}
+footer{margin-top:2.2rem;color:var(--muted);font-size:.9rem;max-width:60ch}
+</style>
+</head>
+<body>
+<div class="wrap">
+
+<header class="top">
+  <h1>Fleet on Hetzner config helper</h1>
+  <p class="lede">Answer a few questions and get a ready-to-use <code>terraform.tfvars</code> file, plus step-by-step instructions for <a href="https://github.com/GrayW/hetzner-fleet-opentofu" target="_blank" rel="noopener noreferrer">hetzner-fleet-opentofu</a>.</p>
+  <p class="trust"><strong>Nothing you type leaves this page.</strong>
+    <span>There is no server behind it, and your browser is told to block every outgoing request.</span>
+    <button type="button" class="linkbtn" id="testNet">Test it</button>
+    <span id="netResult" role="status"></span></p>
+  <noscript><p class="warn">This page needs JavaScript to run in your browser. It still never sends anything anywhere.</p></noscript>
+</header>
+
+<div class="layout">
+<main>
+  <div class="progress">
+    <p id="pmeta"></p>
+    <div class="bar" role="progressbar" aria-label="Progress" aria-valuemin="0" aria-valuemax="6" aria-valuenow="0"><span id="barfill"></span></div>
+  </div>
+
+  <!-- 0 -->
+  <section class="sheet step" data-step="0" hidden>
+    <h2 tabindex="-1">Before you start</h2>
+    <p>You need three things ready. Tick each one when you have it.</p>
+    <ul class="checks">
+      <li><label><input type="checkbox" data-bind="c0"><span><strong>OpenTofu 1.9 or newer</strong> installed on your computer. <a href="https://opentofu.org/docs/intro/install/" target="_blank" rel="noopener noreferrer">How to install</a></span></label></li>
+      <li><label><input type="checkbox" data-bind="c1"><span><strong>A Hetzner Cloud account</strong> with an API token. <a href="https://console.hetzner.com" target="_blank" rel="noopener noreferrer">Open the Hetzner Console</a></span></label></li>
+      <li><label><input type="checkbox" data-bind="c2"><span><strong>A domain name</strong> where you can add DNS records, for example through your registrar or DNS provider.</span></label></li>
+    </ul>
+    <p class="note" id="checkNote">You can keep going, but you’ll need all three before you deploy.</p>
+  </section>
+
+  <!-- 1 -->
+  <section class="sheet step" data-step="1" hidden>
+    <h2 tabindex="-1">Domain and email</h2>
+    <div class="field">
+      <label for="domain">Domain for Fleet</label>
+      <p class="hint" id="h-domain">The address people will use to open Fleet, such as fleet.yourcompany.com. You’ll add DNS records for it later.</p>
+      <input id="domain" data-bind="domain" type="text" inputmode="url" autocomplete="off" autocapitalize="none" spellcheck="false" placeholder="fleet.yourcompany.com" aria-describedby="h-domain err-domain">
+      <p class="err" id="err-domain" aria-live="polite" hidden></p>
+    </div>
+    <div class="field">
+      <label for="email">Email address</label>
+      <p class="hint" id="h-email">Let’s Encrypt emails this address if your HTTPS certificate is about to expire.</p>
+      <input id="email" data-bind="email" type="text" inputmode="email" autocomplete="off" autocapitalize="none" spellcheck="false" placeholder="you@yourcompany.com" aria-describedby="h-email err-email">
+      <p class="err" id="err-email" aria-live="polite" hidden></p>
+    </div>
+  </section>
+
+  <!-- 2 -->
+  <section class="sheet step" data-step="2" hidden>
+    <h2 tabindex="-1">Server</h2>
+    <fieldset>
+      <legend>Location</legend>
+      <p class="hint">Pick the one closest to the devices that will connect.</p>
+      <div class="opts" id="locOpts"></div>
+    </fieldset>
+    <fieldset>
+      <legend>Size</legend>
+      <p class="hint">The default suits a lab or up to about 50 devices.</p>
+      <div class="opts" id="sizeOpts"></div>
+      <div class="field" id="sizeCustomWrap" hidden>
+        <label for="sizeCustom">Hetzner server type</label>
+        <input id="sizeCustom" data-bind="sizeCustom" type="text" autocomplete="off" autocapitalize="none" spellcheck="false" placeholder="cpx32" aria-describedby="err-sizeCustom">
+        <p class="err" id="err-sizeCustom" aria-live="polite" hidden></p>
+      </div>
+      <p class="warn" id="sizeHint" hidden></p>
+      <p class="hint">Not every size is available in every location. If deploying fails with <code>resource_unavailable</code>, try another size or location.</p>
+    </fieldset>
+  </section>
+
+  <!-- 3 -->
+  <section class="sheet step" data-step="3" hidden>
+    <h2 tabindex="-1">Fleet</h2>
+    <div class="field">
+      <label for="version">Fleet version</label>
+      <p class="hint" id="h-version">Use a specific version such as v4.91.1, not “latest”, so every deploy is repeatable.</p>
+      <input id="version" data-bind="version" type="text" autocomplete="off" autocapitalize="none" spellcheck="false" aria-describedby="h-version err-version">
+      <p class="err" id="err-version" aria-live="polite" hidden></p>
+    </div>
+    <fieldset>
+      <legend>Edition</legend>
+      <div class="opts">
+        <label class="opt"><input type="radio" name="edition" value="community" data-bind="edition"><span class="opt-body"><strong>Community</strong><span class="sub">Free, no license key</span></span></label>
+        <label class="opt"><input type="radio" name="edition" value="premium" data-bind="edition"><span class="opt-body"><strong>Premium</strong><span class="sub">You have a Fleet license key</span></span></label>
+      </div>
+    </fieldset>
+  </section>
+
+  <!-- 4 -->
+  <section class="sheet step" data-step="4" hidden>
+    <h2 tabindex="-1">Software packages</h2>
+    <p>Fleet can store software installers in Hetzner Object Storage. This is optional, and you can add it later.</p>
+    <label class="tick"><input type="checkbox" id="pkgBox" data-bind="packages"><span><strong>Store software packages in Hetzner Object Storage</strong></span></label>
+    <p class="warn" id="pkgHint" hidden></p>
+    <p class="note" id="pkgPrice" hidden></p>
+    <p class="hint" style="margin-top:.6rem !important">If you turn this on, you’ll create access keys in the Hetzner Console under Object Storage, then Access Keys. The next step covers how to enter them safely.</p>
+  </section>
+
+  <!-- 5 -->
+  <section class="sheet step" data-step="5" hidden>
+    <h2 tabindex="-1">Secrets</h2>
+    <p>Your Hetzner API token can control your whole cloud account. The safest approach keeps it out of every file and out of this page.</p>
+    <fieldset>
+      <legend class="sr">How to handle secrets</legend>
+      <div class="opts wide">
+        <label class="opt"><input type="radio" name="secmode" value="env" data-bind="secmode"><span class="opt-body"><strong>Keep secrets out of the file</strong><span class="sub">Recommended. You’ll type them into your terminal, which hides what you type.</span></span></label>
+        <label class="opt"><input type="radio" name="secmode" value="file" data-bind="secmode"><span class="opt-body"><strong>Put secrets in the file</strong><span class="sub">Simpler, but the file then holds live credentials.</span></span></label>
+      </div>
+    </fieldset>
+
+    <div id="envPanel">
+      <p class="note" id="envNeeds"></p>
+    </div>
+
+    <div id="filePanel" hidden>
+      <div class="warn" role="note">
+        <p><strong>Treat the finished file like a password.</strong></p>
+        <p>Anyone who gets it can use your Hetzner account. Don’t commit it, email it, or paste it into a chat. What you type below stays in this browser tab and goes into the file only when you copy or download it.</p>
+      </div>
+      <div class="field">
+        <label for="token">Hetzner API token</label>
+        <div class="pwrow"><input id="token" data-bind="token" type="password" autocomplete="off" autocapitalize="none" spellcheck="false" aria-describedby="err-token"><button type="button" class="btn ghost small" data-toggle="token">Show</button></div>
+        <p class="err" id="err-token" aria-live="polite" hidden></p>
+      </div>
+      <div class="field" id="fld-license" hidden>
+        <label for="license">Fleet license key</label>
+        <div class="pwrow"><input id="license" data-bind="license" type="password" autocomplete="off" autocapitalize="none" spellcheck="false" aria-describedby="err-license"><button type="button" class="btn ghost small" data-toggle="license">Show</button></div>
+        <p class="err" id="err-license" aria-live="polite" hidden></p>
+      </div>
+      <div id="s3Fields" hidden>
+        <div class="field">
+          <label for="s3a">Object Storage access key</label>
+          <div class="pwrow"><input id="s3a" data-bind="s3a" type="password" autocomplete="off" autocapitalize="none" spellcheck="false" aria-describedby="err-s3a"><button type="button" class="btn ghost small" data-toggle="s3a">Show</button></div>
+          <p class="err" id="err-s3a" aria-live="polite" hidden></p>
+        </div>
+        <div class="field">
+          <label for="s3s">Object Storage secret key</label>
+          <div class="pwrow"><input id="s3s" data-bind="s3s" type="password" autocomplete="off" autocapitalize="none" spellcheck="false" aria-describedby="err-s3s"><button type="button" class="btn ghost small" data-toggle="s3s">Show</button></div>
+          <p class="err" id="err-s3s" aria-live="polite" hidden></p>
+        </div>
+      </div>
+      <label class="tick"><input type="checkbox" id="ack" data-bind="ack"><span>I understand the file will contain secrets and I’ll keep it private.</span></label>
+      <p class="err" id="err-ack" aria-live="polite" hidden></p>
+    </div>
+  </section>
+
+  <!-- 6 -->
+  <section class="sheet step" data-step="6" hidden>
+    <h2 tabindex="-1">Your files and instructions</h2>
+    <p>Copy or download <code>terraform.tfvars</code> from the panel next to this (below it on a phone). Then follow the steps.</p>
+    <h3>What you chose</h3>
+    <dl id="summary"></dl>
+    <h3>Instructions</h3>
+    <fieldset>
+      <legend>Which terminal do you use?</legend>
+      <div class="opts seg">
+        <label class="opt"><input type="radio" name="shell" value="bash" data-bind="shell"><span class="opt-body"><strong>macOS or Linux</strong><span class="sub">Terminal (zsh or bash)</span></span></label>
+        <label class="opt"><input type="radio" name="shell" value="ps" data-bind="shell"><span class="opt-body"><strong>Windows</strong><span class="sub">PowerShell 7 or newer</span></span></label>
+      </div>
+    </fieldset>
+    <ol class="instr" id="instr"></ol>
+    <h3>Later: tear it down</h3>
+    <div id="teardown"></div>
+    <div class="nav"><button type="button" class="btn ghost" id="startOver">Start over and clear everything</button></div>
+  </section>
+
+  <div class="nav" id="mainNav">
+    <button type="button" class="btn ghost" id="back" hidden>Back</button>
+    <button type="button" class="btn primary" id="next">Continue</button>
+  </div>
+</main>
+
+<div class="side">
+<aside class="file" aria-label="File preview">
+  <div class="fhead">
+    <span class="fname">terraform.tfvars</span>
+    <span class="fbtns">
+      <button type="button" class="pbtn" id="copyFile" disabled>Copy</button>
+      <button type="button" class="pbtn go" id="dlFile" disabled>Download</button>
+    </span>
+  </div>
+  <pre id="preview" tabindex="0" aria-label="Preview of terraform.tfvars"></pre>
+  <div class="fstat" id="fstat"></div>
+</aside>
+<section class="cost" id="cost" aria-labelledby="costTitle" hidden>
+  <div class="chead">
+    <h2 id="costTitle">Estimated monthly cost</h2>
+    <span><label class="sr" for="cur">Currency</label><select id="cur" data-bind="currency"></select></span>
+  </div>
+  <dl id="costRows"></dl>
+  <p class="cnote" id="costNote"></p>
+</section>
+</div>
+</div>
+
+<footer>
+  <p>A personal project, not an officially supported Fleet deployment method. <span id="footNote"></span></p>
+</footer>
+</div>
+
+<script>
+(() => {
+'use strict';
+
+/* ---------- Data (a build step can regenerate this from the Hetzner API) ---------- */
+const DATA = {
+  updated: '2026-10-26',
+  locations: [
+    {id:'nbg1', name:'Nuremberg',   region:'Germany, Europe', eu:true},
+    {id:'fsn1', name:'Falkenstein', region:'Germany, Europe', eu:true},
+    {id:'hel1', name:'Helsinki',    region:'Finland, Europe', eu:true},
+    {id:'ash',  name:'Ashburn',     region:'Virginia, USA',   eu:false},
+    {id:'hil',  name:'Hillsboro',   region:'Oregon, USA',     eu:false},
+    {id:'sin',  name:'Singapore',   region:'Asia',            eu:false},
+  ],
+  sizes: [
+    {id:'cpx22', name:'Standard', spec:'2 vCPU, 4 GB RAM', tag:'Recommended'},
+    {id:'cx23',  name:'Budget',   spec:'2 vCPU, 4 GB RAM', tag:'Try this if Standard is unavailable', euOnly:true},
+    {id:'custom',name:'Something else', spec:'Type a Hetzner server type'},
+  ],
+  // Fallback when no live data was built in. Source: Hetzner's Object Storage FAQ, 2026-10-26.
+  objectStorage: { locations:['fsn1','hel1','nbg1'] },
+};
+const REPO = 'https://github.com/GrayW/hetzner-fleet-opentofu';
+const LAST = 6;
+// Replaced at build time (web/scripts/build.mjs) with prices, availability and exchange rates.
+// When it is still null, the page works the same but shows no cost estimate.
+const LIVE = /*__LIVE_DATA__*/null;
+const OS = Object.assign({}, DATA.objectStorage, LIVE && LIVE.objectStorage);
+
+/* ---------- Helpers ---------- */
+const $  = (s, r=document) => r.querySelector(s);
+const $$ = (s, r=document) => Array.from(r.querySelectorAll(s));
+function h(tag, props={}, ...kids){
+  const e = document.createElement(tag);
+  for (const [k,v] of Object.entries(props)){
+    if (v === false || v == null) continue;
+    if (k === 'class') e.className = v;
+    else if (v === true) e.setAttribute(k,'');
+    else e.setAttribute(k,v);
+  }
+  kids.flat().filter(c => c != null && c !== false)
+      .forEach(c => e.append(c instanceof Node ? c : document.createTextNode(String(c))));
+  return e;
+}
+const a = (t,u) => h('a',{href:u,target:'_blank',rel:'noopener noreferrer'},t);
+const c = t => h('code',{},t);
+// Escape a value for an HCL double-quoted string, including interpolation markers.
+const hcl = s => String(s)
+  .replace(/\\/g,'\\\\').replace(/"/g,'\\"')
+  .replace(/\$\{/g, () => '$${').replace(/%\{/g, () => '%%{')
+  .replace(/\r?\n/g,'\\n');
+
+/* ---------- State ---------- */
+const fresh = () => ({
+  step:0, c0:false, c1:false, c2:false,
+  domain:'', email:'', location:'nbg1', size:'cpx22', sizeCustom:'',
+  version:'v4.91.1', edition:'community', packages:false,
+  secmode:'env', token:'', license:'', s3a:'', s3s:'', ack:false, currency:'EUR',
+  shell: /Windows/i.test(navigator.userAgent) ? 'ps' : 'bash',
+  done:{}, touched:new Set(),
+});
+let S = fresh();
+const inFile  = () => S.secmode === 'file';
+const premium = () => S.edition === 'premium';
+const domain  = () => S.domain.trim().toLowerCase();
+const sizeId  = () => S.size === 'custom' ? S.sizeCustom.trim() : S.size;
+const locName = id => (DATA.locations.find(l => l.id === id) || {name:id}).name;
+const joinList = xs => xs.length < 2 ? xs.join('') : xs.slice(0,-1).join(', ') + ' and ' + xs[xs.length-1];
+const specOf = s => { const t = LIVE && LIVE.serverTypes[s.id]; return t ? t.cores + ' vCPU, ' + t.memory + ' GB RAM' : s.spec; };
+
+/* ---------- Prices ---------- */
+const rate = cur => cur === 'EUR' ? 1 : (LIVE && LIVE.rates.values[cur]);
+function money(eur){
+  const cur = S.currency, amt = eur * (rate(cur) || 1);
+  try { return new Intl.NumberFormat(undefined, {style:'currency', currency:cur}).format(amt); }
+  catch (_) { return cur + ' ' + amt.toFixed(2); }
+}
+const objectStorageOk = () => OS.locations.includes(S.location);
+function sizeHint(){
+  const loc = DATA.locations.find(l => l.id === S.location), id = sizeId();
+  if (LIVE){
+    if (!id || (S.size === 'custom' && V.size(S.sizeCustom))) return '';
+    const t = LIVE.serverTypes[id];
+    if (!t) return '“' + id + '” isn’t in Hetzner’s current list of server types, so it can’t be priced here. Check the name.';
+    if (!t.prices[S.location]) return 'Hetzner doesn’t offer ' + id + ' in ' + loc.name + '. Choose another location or size.';
+    return '';
+  }
+  const sz = DATA.sizes.find(s => s.id === S.size);
+  return (sz && sz.euOnly && loc && !loc.eu)
+    ? 'This size is usually only offered in European locations. Pick a European location, or choose the Standard size.' : '';
+}
+function applyObjectStorage(){
+  const ok = objectStorageOk(), box = $('#pkgBox');
+  box.disabled = !ok;
+  if (!ok && S.packages){ S.packages = false; box.checked = false; }
+  const hint = $('#pkgHint');
+  hint.hidden = ok;
+  hint.textContent = ok ? '' : 'Hetzner Object Storage is only available in ' + joinList(OS.locations.map(locName)) +
+    '. You chose ' + locName(S.location) + ', so this option is off. Go back and pick one of those locations to use it.';
+  const price = $('#pkgPrice');
+  price.hidden = !(ok && LIVE && OS.baseMonthly);
+  if (!price.hidden) price.textContent = 'This adds about ' + money(OS.baseMonthly) + ' a month before VAT. Hetzner charges from the moment the bucket exists, even while it’s empty. That price includes ' +
+    OS.includedStorageTb + ' TB of storage and ' + OS.includedEgressTb + ' TB of outgoing traffic.';
+}
+function renderCost(){
+  const card = $('#cost'); card.hidden = !LIVE; if (!LIVE) return;
+  const id = sizeId(), t = LIVE.serverTypes[id], sp = t && t.prices[S.location];
+  const rows = []; let total = 0;
+  if (sp){ rows.push(['Server (' + id + ', ' + locName(S.location) + ')', sp.monthly]); total += sp.monthly; }
+  const ip = LIVE.ipv4 && LIVE.ipv4[S.location];
+  if (sp && ip){ rows.push(['IPv4 address', ip.monthly]); total += ip.monthly; }
+  if (sp && S.packages && objectStorageOk()){ rows.push(['Object Storage', OS.baseMonthly]); total += OS.baseMonthly; }
+  const dl = $('#costRows'); dl.textContent = '';
+  rows.forEach(([k, v]) => dl.append(h('dt',{}, k), h('dd',{}, money(v))));
+  if (sp) dl.append(h('dt',{class:'tot'}, 'Total per month'), h('dd',{class:'tot'}, money(total)));
+  const notes = [];
+  if (!sp) notes.push('No price is available for this size in this location.');
+  else {
+    notes.push('Before VAT. Hetzner bills hourly and caps each item at its monthly price.');
+    if (!ip) notes.push('The IPv4 address cost isn’t included.');
+    if (S.packages && objectStorageOk()) notes.push('Beyond the included quota, Object Storage costs about ' + money(OS.storagePerTbMonth) +
+      ' per extra TB of storage per month and ' + money(OS.egressPerTb) + ' per extra TB of traffic.');
+  }
+  notes.push('Prices from Hetzner, ' + LIVE.generatedAt.slice(0,10) + '.');
+  if (S.currency !== 'EUR') notes.push('Converted from euros at the European Central Bank rate of ' + LIVE.rates.date +
+    '. Hetzner prices in euros and US dollars, so other currencies are approximate.');
+  const day = 86400000, now = Date.now();
+  if (now - Date.parse(LIVE.generatedAt) > 14 * day) notes.push('These prices are over two weeks old and may be out of date.');
+  else if (S.currency !== 'EUR' && now - Date.parse(LIVE.rates.date) > 8 * day) notes.push('The exchange rate is over a week old.');
+  $('#costNote').textContent = notes.join(' ');
+}
+
+/* ---------- Validation ---------- */
+const V = {
+  domain(raw){
+    const v = raw.trim().toLowerCase();
+    if (!v) return 'Enter the address people will use to open Fleet.';
+    if (/^[a-z]+:\/\//.test(v) || v.includes('/')) return 'Enter just the hostname, like fleet.yourcompany.com, with no https:// or slashes.';
+    if (!/^(?=.{4,253}$)([a-z0-9]([a-z0-9-]{0,61}[a-z0-9])?\.)+[a-z]{2,63}$/.test(v)) return 'That doesn’t look like a valid domain. Use letters, numbers and hyphens, with at least one dot.';
+    if (/(^|\.)example\.(com|org|net)$/.test(v)) return 'example.com domains are placeholders and can’t get a certificate. Use a domain you own.';
+    return '';
+  },
+  email(raw){
+    const v = raw.trim();
+    if (!v) return 'Enter an email address.';
+    if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(v)) return 'That doesn’t look like an email address.';
+    if (/@example\.(com|org|net)$/i.test(v)) return 'example.com addresses are placeholders. Use a real one.';
+    return '';
+  },
+  version(raw){
+    const v = raw.trim();
+    if (/^latest$/i.test(v)) return 'Pin a specific version such as v4.91.1 instead of “latest”.';
+    if (!/^v\d+\.\d+\.\d+$/.test(v)) return 'Use the form v4.91.1: a “v”, then three numbers separated by dots.';
+    return '';
+  },
+  size(raw){
+    return /^[a-z]{2,4}\d{1,3}$/.test(raw.trim()) ? '' : 'Use a Hetzner server type name such as cpx32 or ccx13.';
+  },
+};
+function errors(i){
+  const e = [];
+  if (i === 1){
+    const d = V.domain(S.domain); if (d) e.push(['domain', d]);
+    const m = V.email(S.email);   if (m) e.push(['email', m]);
+  }
+  if (i === 2 && S.size === 'custom'){
+    const m = V.size(S.sizeCustom); if (m) e.push(['sizeCustom', m]);
+  }
+  if (i === 3){
+    const m = V.version(S.version); if (m) e.push(['version', m]);
+  }
+  if (i === 5 && inFile()){
+    if (!S.token.trim()) e.push(['token','Enter your Hetzner API token, or switch to keeping secrets out of the file.']);
+    if (premium() && !S.license.trim()) e.push(['license','Enter your Fleet license key.']);
+    if (S.packages){
+      if (!S.s3a.trim()) e.push(['s3a','Enter the Object Storage access key.']);
+      if (!S.s3s.trim()) e.push(['s3s','Enter the Object Storage secret key.']);
+    }
+    if (!S.ack) e.push(['ack','Tick the box to confirm.']);
+  }
+  return e;
+}
+const isComplete = () => [1,2,3,5].every(i => errors(i).length === 0);
+
+/* ---------- The file ---------- */
+function buildFile(masked){
+  const L = [];
+  const cm = t => L.push({t, k:'c'});
+  const blank = () => L.push({t:'', k:'c'});
+  const kv = (key, val, secret) => {
+    const set = !!val;
+    const shown = !set ? '…' : (masked && secret ? '••••••••' : hcl(val));
+    L.push({t: key.padEnd(18) + '= "' + shown + '"', k: set ? '' : 'u'});
+  };
+  cm('# Fleet on Hetzner settings');
+  cm('# Save as terraform.tfvars, in the same folder as main.tf.');
+  cm('# Keep it out of git and don’t share it.');
+  blank();
+  kv('domain',        domain());
+  kv('admin_email',   S.email.trim());
+  kv('location',      S.location);
+  kv('server_type',   sizeId());
+  kv('fleet_version', S.version.trim());
+  if (inFile()){
+    if (premium())  kv('fleet_license_key', S.license.trim(), true);
+    if (S.packages){ kv('s3_access_key', S.s3a.trim(), true); kv('s3_secret_key', S.s3s.trim(), true); }
+    kv('hetzner_token', S.token.trim(), true);
+  } else {
+    blank();
+    cm('# Secrets are not stored in this file.');
+    cm('# The instructions give you commands that ask for them privately.');
+  }
+  return { lines:L, text: L.map(l => l.t).join('\n') + '\n' };
+}
+let prevSet = null;
+function renderPreview(){
+  const { lines } = buildFile(true);
+  const pre = $('#preview'); pre.textContent = '';
+  const next = new Set();
+  lines.forEach(l => {
+    const s = h('span',{class:'ln ' + l.k}, l.t || '\u200b');
+    if (prevSet && l.t && l.k !== 'c' && !prevSet.has(l.t)) s.classList.add('flash');
+    pre.append(s); next.add(l.t);
+  });
+  prevSet = next;
+}
+
+/* ---------- UI sync ---------- */
+function pushState(){
+  $$('[data-bind]').forEach(el => {
+    const k = el.dataset.bind;
+    if (el.type === 'checkbox') el.checked = !!S[k];
+    else if (el.type === 'radio') el.checked = (S[k] === el.value);
+    else el.value = S[k];
+  });
+  $$('input[data-bind][type=text], input[type=password]').forEach(i => { if (i.type==='text' && i.id && ['token','license','s3a','s3s'].includes(i.id)) i.type='password'; });
+  $$('[data-toggle]').forEach(b => { b.textContent = 'Show'; $('#'+b.dataset.toggle).type = 'password'; });
+}
+function showErrors(){
+  const map = new Map(errors(S.step));
+  ['domain','email','sizeCustom','version','token','license','s3a','s3s','ack'].forEach(k => {
+    const p = $('#err-'+k), inp = $('#'+k); if (!p) return;
+    const msg = map.get(k), show = !!msg && S.touched.has(k);
+    p.hidden = !show; p.textContent = show ? msg : '';
+    if (inp) inp.setAttribute('aria-invalid', show ? 'true' : 'false');
+  });
+}
+function refresh(){
+  $('#checkNote').hidden = S.c0 && S.c1 && S.c2;
+  $('#sizeCustomWrap').hidden = S.size !== 'custom';
+
+  const hint = sizeHint();
+  $('#sizeHint').textContent = hint; $('#sizeHint').hidden = !hint;
+  applyObjectStorage();
+
+  $('#envPanel').hidden  = inFile();
+  $('#filePanel').hidden = !inFile();
+  $('#fld-license').hidden = !(inFile() && premium());
+  $('#s3Fields').hidden    = !(inFile() && S.packages);
+  const needs = ['your Hetzner API token'];
+  if (premium()) needs.push('your Fleet license key');
+  if (S.packages) needs.push('your Object Storage access key and secret key');
+  $('#envNeeds').textContent = 'You’ll enter ' + needs.join(', ').replace(/, ([^,]*)$/, needs.length > 1 ? ' and $1' : ', $1') +
+    ' in your terminal. The instructions give you the exact commands, and what you type is hidden.';
+
+  showErrors();
+  renderPreview();
+  renderCost();
+
+  const ok = isComplete();
+  $('#copyFile').disabled = !ok; $('#dlFile').disabled = !ok;
+  $('#fstat').textContent = ok
+    ? (inFile() ? 'Ready. Secrets are hidden in this preview but included when you copy or download.' : 'Ready. Copy or download your file.')
+    : 'Answer the remaining questions to turn on Copy and Download. Dimmed lines aren’t filled in yet.';
+}
+
+/* ---------- Navigation ---------- */
+function go(n){
+  S.step = n;
+  $$('.step').forEach(s => { s.hidden = Number(s.dataset.step) !== n; });
+  $('#pmeta').textContent = n < LAST ? 'Step ' + (n+1) + ' of ' + LAST : 'All done';
+  $('#barfill').style.width = Math.min(100, (n / LAST) * 100) + '%';
+  $('.bar').setAttribute('aria-valuenow', String(Math.min(n, LAST)));
+  $('#back').hidden = n === 0;
+  $('#next').hidden = n === LAST;
+  $('#next').textContent = n === LAST - 1 ? 'Show my files' : 'Continue';
+  if (n === LAST) renderResult();
+  refresh();
+  const hd = $('.step:not([hidden]) h2'); if (hd) hd.focus({preventScroll:true});
+  window.scrollTo(0, 0);
+}
+function next(){
+  if (S.step >= LAST) return;
+  const errs = errors(S.step);
+  if (errs.length){
+    errs.forEach(([k]) => S.touched.add(k));
+    refresh();
+    const el = $('#' + errs[0][0]); if (el) el.focus();
+    return;
+  }
+  go(S.step + 1);
+}
+
+/* ---------- Result ---------- */
+function sizeLabel(){
+  const s = DATA.sizes.find(x => x.id === S.size);
+  return s && s.id !== 'custom' ? s.name + ' (' + s.id + ', ' + s.spec + ')' : sizeId();
+}
+function renderSummary(){
+  const dl = $('#summary'); dl.textContent = '';
+  const loc = DATA.locations.find(l => l.id === S.location);
+  [
+    ['Domain', domain()],
+    ['Certificate email', S.email.trim()],
+    ['Location', loc.name + ' (' + loc.region + ')'],
+    ['Server size', sizeLabel()],
+    ['Fleet version', S.version.trim()],
+    ['Edition', premium() ? 'Fleet Premium' : 'Fleet Community'],
+    ['Software packages', S.packages ? 'Stored in Hetzner Object Storage' : 'Not enabled'],
+    ['Secrets', inFile() ? 'Included in the file' : 'Kept out of the file'],
+  ].forEach(([k,v]) => dl.append(h('dt',{},k), h('dd',{},v)));
+}
+function copyText(text, btn){
+  const done = () => { const o = btn.dataset.label || btn.textContent; btn.dataset.label = o; btn.textContent = 'Copied'; setTimeout(() => { btn.textContent = o; }, 1500); };
+  const fallback = () => {
+    const ta = h('textarea',{readonly:true}); ta.value = text;
+    ta.style.position = 'fixed'; ta.style.opacity = '0'; document.body.append(ta); ta.select();
+    try { document.execCommand('copy'); } catch (_) {}
+    ta.remove(); done();
+  };
+  if (navigator.clipboard && navigator.clipboard.writeText) navigator.clipboard.writeText(text).then(done, fallback);
+  else fallback();
+}
+function codeBlock(text){
+  const btn = h('button',{type:'button',class:'pbtn'},'Copy');
+  btn.addEventListener('click', () => copyText(text, btn));
+  return h('div',{class:'code'}, h('pre',{}, h('code',{}, text)), btn);
+}
+function secretCommands(){
+  const need = [['hetzner_token','Hetzner API token']];
+  if (premium()) need.push(['fleet_license_key','Fleet license key']);
+  if (S.packages){ need.push(['s3_access_key','Object Storage access key']); need.push(['s3_secret_key','Object Storage secret key']); }
+  return need.map(([v,l]) => S.shell === 'bash'
+    ? "printf '" + l + ": '; read -rs TF_VAR_" + v + '; echo; export TF_VAR_' + v
+    : '$env:TF_VAR_' + v + ' = Read-Host -MaskInput "' + l + '"').join('\n');
+}
+function renderInstructions(){
+  const bash = S.shell === 'bash', d = domain();
+  const steps = [];
+  steps.push({ t:'Install OpenTofu',
+    body:['Follow the ', a('install guide','https://opentofu.org/docs/intro/install/'), ', then check it works. You need version 1.9 or newer. You’ll also need ', c('git'), '.'],
+    code:'tofu version' });
+  steps.push({ t:'Get the code',
+    body:['Open a terminal and run these. The last command downloads what OpenTofu needs.'],
+    code:'git clone ' + REPO + '\ncd hetzner-fleet-opentofu\ntofu init' });
+  steps.push({ t:'Add your config file',
+    body:['Move the ', c('terraform.tfvars'), ' you downloaded into the ', c('hetzner-fleet-opentofu'), ' folder, next to ', c('main.tf'), '. If your browser added ', c('.txt'), ' to the end of the name, remove it.'],
+    code: bash ? 'mv ~/Downloads/terraform.tfvars .' : 'Move-Item "$HOME\\Downloads\\terraform.tfvars" .' });
+  if (inFile()){
+    steps.push({ t:'Keep the file private',
+      body:['Your secrets are inside ', c('terraform.tfvars'), '. Never commit it to git (the project’s ', c('.gitignore'), ' already excludes it), never email it, and delete the copy in your Downloads folder.'] });
+  } else {
+    const where = ['Create the Hetzner token in the Hetzner Console under your project’s Security, then API tokens, with Read & Write permission.'];
+    if (S.packages) where.push(' Create Object Storage keys under Object Storage, then Access Keys.');
+    steps.push({ t:'Enter your secrets in the terminal',
+      body:[where.join(''), ' Paste the commands below. Each one asks for a value and hides what you type.'],
+      code: secretCommands(),
+      after:['This only lasts for the current terminal window. If you open a new one, run these again before the ', c('tofu'), ' commands.'] });
+  }
+  steps.push({ t:'Create the server',
+    body:[c('tofu plan'), ' shows what will be created without changing anything. ', c('tofu apply'), ' creates it. Type ', c('yes'), ' when asked. This takes a few minutes.'],
+    code:'tofu plan\ntofu apply',
+    after:['If it fails with ', c('resource_unavailable'), ', change the server size or location in ', c('terraform.tfvars'), ' and run ', c('tofu apply'), ' again.'] });
+  steps.push({ t:'Add DNS records',
+    body:['Run this to see the records, then add them at your DNS provider: an ', c('A'), ' record and an ', c('AAAA'), ' record for ', c(d), '.'],
+    code:'tofu output dns_records',
+    after:['Fleet can’t get its HTTPS certificate until the domain points at the server, so don’t skip this. DNS changes can take a few minutes to spread.'] });
+  steps.push({ t:'Wait for setup to finish',
+    body:['The server installs Fleet by itself. This takes about 5 minutes. When the command prints ', c('status: done'), ', it’s ready. If SSH asks whether to trust the host, type ', c('yes'), '.'],
+    code: bash
+      ? "ssh -i .fleet_ed25519 root@$(tofu output -raw ipv4_address) 'cloud-init status --wait'"
+      : "$ip = tofu output -raw ipv4_address\nssh -i .fleet_ed25519 root@$ip 'cloud-init status --wait'" });
+  steps.push({ t:'Open Fleet',
+    body:['Go to ', a('https://' + d, 'https://' + d), ' and create your admin account. Then run this to get the enroll secret that devices use to join:'],
+    code:'tofu output -raw enroll_secret' });
+  steps.push({ t:'Back up two things',
+    body:['Save the Windows MDM certificate somewhere safe. Losing it breaks Windows MDM re-enrolment. Also keep a private copy of ', c('terraform.tfstate'), ': it holds your generated secrets and is how OpenTofu knows what to remove later.'],
+    code: bash ? 'tofu output -raw wstep_cert > wstep_cert.pem' : 'tofu output -raw wstep_cert | Set-Content -Encoding ascii wstep_cert.pem' });
+
+  const ol = $('#instr'); ol.textContent = '';
+  steps.forEach((s, i) => {
+    const li = h('li',{class: S.done[i] ? 'done' : ''});
+    const cb = h('input',{type:'checkbox',id:'done'+i}); cb.checked = !!S.done[i];
+    cb.addEventListener('change', () => { S.done[i] = cb.checked; li.classList.toggle('done', cb.checked); });
+    li.append(h('div',{class:'ihead'}, h('h4',{}, s.t), h('label',{class:'donelbl',for:'done'+i}, cb, 'Done')));
+    li.append(h('p',{}, ...s.body));
+    if (s.code)  li.append(codeBlock(s.code));
+    if (s.after) li.append(h('p',{}, ...s.after));
+    ol.append(li);
+  });
+
+  const td = $('#teardown'); td.textContent = '';
+  td.append(h('p',{}, 'When you no longer need it, run this in the project folder. Then delete the DNS records for ', c(d), ' at your DNS provider.'), codeBlock('tofu destroy'));
+}
+function renderResult(){ renderSummary(); renderInstructions(); }
+
+/* ---------- Events ---------- */
+function onBind(e){
+  const el = e.target, k = el.dataset && el.dataset.bind; if (!k) return;
+  if (el.type === 'checkbox') S[k] = el.checked;
+  else if (el.type === 'radio'){ if (!el.checked) return; S[k] = el.value; }
+  else { S[k] = el.value; S.touched.add(k); }
+  if (k === 'secmode' && el.value === 'env'){ S.token = S.license = S.s3a = S.s3s = ''; S.ack = false; pushState(); }
+  if (k === 'shell' && S.step === LAST) renderInstructions();
+  refresh();
+}
+document.addEventListener('input', onBind);
+document.addEventListener('change', onBind);
+document.addEventListener('focusout', e => {
+  const k = e.target && e.target.dataset && e.target.dataset.bind;
+  if (k && e.target.type !== 'radio' && e.target.type !== 'checkbox'){ S.touched.add(k); showErrors(); }
+});
+document.addEventListener('click', e => {
+  const t = e.target.closest('[data-toggle]'); if (!t) return;
+  const inp = $('#' + t.dataset.toggle), show = inp.type === 'password';
+  inp.type = show ? 'text' : 'password'; t.textContent = show ? 'Hide' : 'Show';
+});
+document.addEventListener('keydown', e => {
+  if (e.key === 'Enter' && S.step < LAST && e.target.matches && e.target.matches('input[type=text],input[type=password]')){ e.preventDefault(); next(); }
+});
+$('#next').addEventListener('click', next);
+$('#back').addEventListener('click', () => go(Math.max(0, S.step - 1)));
+$('#copyFile').addEventListener('click', () => { if (isComplete()) copyText(buildFile(false).text, $('#copyFile')); });
+$('#dlFile').addEventListener('click', () => {
+  if (!isComplete()) return;
+  const blob = new Blob([buildFile(false).text], {type:'application/octet-stream'});
+  const url = URL.createObjectURL(blob);
+  const link = h('a',{href:url,download:'terraform.tfvars'});
+  document.body.append(link); link.click(); link.remove();
+  setTimeout(() => URL.revokeObjectURL(url), 1500);
+});
+$('#startOver').addEventListener('click', () => { S = fresh(); prevSet = null; pushState(); go(0); });
+
+/* Network self-test: try to reach out, and report whether the browser blocked it. */
+$('#testNet').addEventListener('click', () => {
+  const out = $('#netResult'); out.textContent = 'Testing…';
+  let violated = false;
+  const onV = () => { violated = true; };
+  document.addEventListener('securitypolicyviolation', onV, {once:true});
+  const report = () => setTimeout(() => {
+    document.removeEventListener('securitypolicyviolation', onV);
+    out.textContent = violated
+      ? 'Blocked: your browser’s security policy stopped the request, so this page can’t send data out.'
+      : 'The request failed, but the browser didn’t confirm it was blocked by policy. You may be offline or an extension interfered. Check the Network tab in your browser’s developer tools to be sure.';
+  }, 150);
+  try { fetch('https://self-test.invalid/ping', {mode:'no-cors'}).then(() => { out.textContent = 'Warning: the request was NOT blocked. Don’t enter anything sensitive.'; }, report); }
+  catch (_) { report(); }
+});
+window.addEventListener('beforeunload', e => {
+  if (S.step < LAST && (S.domain || S.email || S.token || S.license || S.s3a || S.s3s)){ e.preventDefault(); e.returnValue = ''; }
+});
+
+/* ---------- Init ---------- */
+$('#footNote').textContent = LIVE
+  ? 'Prices and availability from Hetzner as of ' + LIVE.generatedAt.slice(0,10) + '; exchange rates from the European Central Bank as of ' + LIVE.rates.date + '.'
+  : 'The location and size lists were last checked on ' + DATA.updated + '. Cost estimates aren’t available in this copy.';
+(() => {
+  const all = [...new Set(['EUR'].concat(LIVE ? Object.keys(LIVE.rates.values) : []))];
+  const first = ['EUR','USD'].filter(c => all.includes(c));
+  const ordered = first.concat(all.filter(c => !first.includes(c)).sort());
+  let names = null; try { names = new Intl.DisplayNames(undefined, {type:'currency'}); } catch (_) {}
+  ordered.forEach(c => { let n = ''; try { n = names ? names.of(c) : ''; } catch (_) {}
+    $('#cur').append(h('option',{value:c}, n && n !== c ? c + ' (' + n + ')' : c)); });
+})();
+DATA.locations.forEach(l => $('#locOpts').append(
+  h('label',{class:'opt'}, h('input',{type:'radio',name:'location',value:l.id,'data-bind':'location'}),
+    h('span',{class:'opt-body'}, h('strong',{}, l.name), h('span',{class:'sub'}, l.region)))));
+DATA.sizes.forEach(s => $('#sizeOpts').append(
+  h('label',{class:'opt'}, h('input',{type:'radio',name:'size',value:s.id,'data-bind':'size'}),
+    h('span',{class:'opt-body'}, h('strong',{}, s.name), h('span',{class:'sub'}, specOf(s)), s.tag ? h('span',{class:'tag'}, s.tag) : null))));
+pushState();
+go(0);
+})();
+</script>
+</body>
+</html>
