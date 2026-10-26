@@ -277,3 +277,55 @@ variable "restic_version" {
   type        = string
   default     = "0.18.0"
 }
+
+# ── Secret overrides (disaster recovery) ──────────────────────────────────────
+# Leave empty normally. Set only to bring back the secrets of an earlier
+# deployment when its state is lost; scripts/export-secrets.sh writes them as a
+# recovery.tfvars file. See docs/secrets-recovery.md.
+
+variable "fleet_server_private_key" {
+  description = "Recovery override for FLEET_SERVER_PRIVATE_KEY (hex). Empty generates one."
+  type        = string
+  default     = ""
+  sensitive   = true
+
+  validation {
+    condition     = var.fleet_server_private_key == "" || can(regex("^[0-9a-f]{64,}$", var.fleet_server_private_key))
+    error_message = "fleet_server_private_key must be a hex string of at least 32 bytes (64 hex chars)."
+  }
+}
+
+variable "enroll_secret" {
+  description = "Recovery override for the osquery enroll secret. Empty generates one."
+  type        = string
+  default     = ""
+  sensitive   = true
+}
+
+variable "wstep_cert_pem" {
+  description = "Recovery override for the Windows MDM WSTEP CA certificate (PEM). Set together with wstep_key_pem."
+  type        = string
+  default     = ""
+
+  validation {
+    condition     = var.wstep_cert_pem == "" || strcontains(var.wstep_cert_pem, "BEGIN CERTIFICATE")
+    error_message = "wstep_cert_pem must be a PEM certificate."
+  }
+}
+
+variable "wstep_key_pem" {
+  description = "Recovery override for the Windows MDM WSTEP CA private key (PEM). Set together with wstep_cert_pem."
+  type        = string
+  default     = ""
+  sensitive   = true
+
+  validation {
+    condition     = (var.wstep_key_pem == "") == (var.wstep_cert_pem == "")
+    error_message = "Set wstep_cert_pem and wstep_key_pem together, or neither."
+  }
+
+  validation {
+    condition     = var.wstep_key_pem == "" || strcontains(var.wstep_key_pem, "PRIVATE KEY")
+    error_message = "wstep_key_pem must be a PEM private key."
+  }
+}

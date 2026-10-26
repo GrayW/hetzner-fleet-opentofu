@@ -45,13 +45,25 @@ output "fleet_url" {
 
 output "enroll_secret" {
   description = "osquery enroll secret — retrieve with: tofu output -raw enroll_secret"
-  value       = random_bytes.enroll_secret.hex
+  value       = local.enroll_secret
   sensitive   = true
 }
 
 output "wstep_cert" {
   description = "Windows MDM WSTEP CA certificate (PEM) — back this up; losing it breaks Windows MDM re-enrollment"
-  value       = tls_self_signed_cert.wstep.cert_pem
+  value       = local.wstep_cert
+}
+
+output "wstep_key" {
+  description = "Windows MDM WSTEP CA private key (PEM). Export with scripts/export-secrets.sh"
+  value       = local.wstep_key
+  sensitive   = true
+}
+
+output "server_private_key" {
+  description = "FLEET_SERVER_PRIVATE_KEY (hex). Export with scripts/export-secrets.sh"
+  value       = local.server_private_key
+  sensitive   = true
 }
 
 output "s3_bucket" {
@@ -84,6 +96,8 @@ output "next_steps" {
     4. Open https://${var.domain} to create the Fleet admin account
     5. Retrieve enroll secret:
          tofu output -raw enroll_secret
+       Export all secrets to your password manager (see docs/secrets-recovery.md):
+         scripts/export-secrets.sh state ~/fleet-secrets
     6. Monitor cloud-init:
          ssh -i .fleet_ed25519 root@${hcloud_server.fleet.ipv4_address} 'cloud-init status --wait'
     7. Fleet logs:
