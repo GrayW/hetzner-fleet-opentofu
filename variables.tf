@@ -4,6 +4,21 @@ variable "hetzner_token" {
   sensitive   = true
 }
 
+variable "state_passphrase" {
+  description = <<-EOT
+    Passphrase that encrypts the OpenTofu state and plan files (min 16 chars).
+    Keep it in a password manager and pass it as TF_VAR_state_passphrase rather
+    than in terraform.tfvars. Losing it makes the state unreadable.
+  EOT
+  type        = string
+  sensitive   = true
+
+  validation {
+    condition     = length(var.state_passphrase) >= 16
+    error_message = "state_passphrase must be at least 16 characters."
+  }
+}
+
 variable "server_name" {
   description = "Name prefix for all Hetzner resources"
   type        = string

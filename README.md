@@ -35,8 +35,11 @@ Deploy a [Fleet](https://fleetdm.com) instance on Hetzner Cloud. Suitable for la
 ```bash
 git clone https://github.com/GrayW/hetzner-fleet-opentofu
 cd hetzner-fleet-opentofu
+export TF_VAR_state_passphrase='a-long-random-passphrase'   # see State below
 tofu init
 ```
+
+Every `tofu` command needs `TF_VAR_state_passphrase` set, including `init`.
 
 ### 2. Create your tfvars file
 
@@ -99,6 +102,7 @@ All variables have safe defaults.
 | Variable | Default | Description |
 |---|---|---|
 | `hetzner_token` | — | **Required.** Hetzner Cloud API token |
+| `state_passphrase` | — | **Required.** Encrypts state and plans (min 16 chars). Pass as `TF_VAR_state_passphrase` |
 | `domain` | `fleet.example.com` | **Required.** Public hostname; Caddy requests a cert for this |
 | `admin_email` | `admin@example.com` | **Required.** Let's Encrypt expiry notification address |
 | `server_type` | `cpx22` | Hetzner server type (2 vCPU / 4 GB). See note below |
@@ -129,6 +133,25 @@ All variables have safe defaults.
 | `wstep_cert` | Windows MDM WSTEP CA certificate (PEM) — back this up |
 | `dns_records` | Summary of DNS records to create |
 | `next_steps` | Post-deploy checklist |
+
+---
+
+## State
+
+The state holds every generated secret (MySQL passwords, Fleet server key,
+WSTEP CA key, enroll secret). It's encrypted with OpenTofu state encryption
+(AES-GCM, key derived from `state_passphrase` via PBKDF2), and so are saved
+plan files. Unencrypted state is refused.
+
+- Keep the passphrase in a password manager, separate from the state.
+  Without it the state can't be read, though the off-host backups can still
+  restore Fleet.
+- Upgrading from v0.1.0 (unencrypted state): see
+  [docs/upgrade-0.2.md](docs/upgrade-0.2.md#state-encryption-16).
+- Local state is the default. To keep state off your laptop, copy
+  [`backend.tf.example`](backend.tf.example) to `backend.tf` (Hetzner Object
+  Storage, S3 API) and run `tofu init -migrate-state`.
+- Encryption is OpenTofu-only. Terraform can't read this state.
 
 ---
 

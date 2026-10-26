@@ -4,6 +4,10 @@
 # Required
 hetzner_token = "your-hetzner-api-token"
 
+# Also required: state_passphrase (encrypts the state). Don't put it here;
+# export it from your password manager instead:
+#   export TF_VAR_state_passphrase="$(op read op://vault/fleet-tofu/passphrase)"
+
 # SSH access — restrict to your own IP(s) for security
 # admin_cidrs = ["203.0.113.5/32"]        # Single IPv4
 # admin_cidrs = ["0.0.0.0/0", "::/0"]    # Open to all (lab use only)

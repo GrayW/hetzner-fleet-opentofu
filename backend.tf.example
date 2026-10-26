@@ -1,0 +1,33 @@
+# Optional remote state in Hetzner Object Storage (S3 API).
+#
+# 1. Create a bucket in the Hetzner console, ideally in a different location
+#    from the server, with its own access key.
+# 2. Copy this file to backend.tf and set bucket, region and endpoint.
+# 3. export AWS_ACCESS_KEY_ID=... AWS_SECRET_ACCESS_KEY=...
+# 4. tofu init -migrate-state
+#
+# State stays encrypted with state_passphrase; the bucket only sees ciphertext.
+# use_lockfile needs OpenTofu >= 1.10. If your OpenTofu version or the bucket
+# rejects it, remove the line and never run two applies at once.
+
+terraform {
+  backend "s3" {
+    bucket = "my-fleet-tfstate"
+    key    = "fleet/terraform.tfstate"
+    region = "fsn1"
+
+    endpoints = {
+      s3 = "https://fsn1.your-objectstorage.com"
+    }
+
+    use_lockfile = true
+
+    # Hetzner isn't AWS: skip the AWS-specific checks.
+    skip_credentials_validation = true
+    skip_region_validation      = true
+    skip_requesting_account_id  = true
+    skip_metadata_api_check     = true
+    skip_s3_checksum            = true
+    use_path_style              = true
+  }
+}

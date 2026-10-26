@@ -1,6 +1,26 @@
 terraform {
   required_version = ">= 1.9"
 
+  # State and plan files hold every secret this config generates, so both are
+  # encrypted with a key derived from var.state_passphrase. Unencrypted state is
+  # refused; to migrate an existing one, see docs/upgrade-0.2.md.
+  encryption {
+    key_provider "pbkdf2" "main" {
+      passphrase = var.state_passphrase
+    }
+    method "aes_gcm" "main" {
+      keys = key_provider.pbkdf2.main
+    }
+    state {
+      method   = method.aes_gcm.main
+      enforced = true
+    }
+    plan {
+      method   = method.aes_gcm.main
+      enforced = true
+    }
+  }
+
   required_providers {
     hcloud = {
       source  = "hetznercloud/hcloud"

@@ -16,6 +16,9 @@ jobs:
   validate:
     name: fmt + validate (OpenTofu ${{ matrix.tofu_version }})
     runs-on: ubuntu-latest
+    env:
+      # State encryption is evaluated at init; any value works without state.
+      TF_VAR_state_passphrase: ci-dummy-passphrase-not-secret
     strategy:
       fail-fast: false
       matrix:
