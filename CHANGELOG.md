@@ -25,6 +25,12 @@ explicitly and include upgrade notes.
 - OpenTofu state and plan encryption (AES-GCM, PBKDF2 passphrase) with a
   required `state_passphrase` variable, plus `backend.tf.example` for keeping
   state in Hetzner Object Storage (#16).
+- Opt-in nightly off-host backups: `mysqldump` plus `/etc/fleet` in one
+  restic snapshot (pinned `restic/restic` image), 7/4/6 retention, systemd
+  timer at 03:00 UTC, optional healthcheck ping on start, success and failure.
+  New `backup_*` and `restic_version` variables, a `backups` output and a
+  `next_steps` warning while disabled. `tofu plan` warns if the repo is in
+  the server's location (#4).
 
 ### Changed
 - **Breaking:** `tofu destroy` and server replacement now fail by default.

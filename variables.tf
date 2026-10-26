@@ -187,3 +187,93 @@ variable "server_backups" {
   type        = bool
   default     = false
 }
+
+# ── Off-host backups (restic) ─────────────────────────────────────────────────
+# Leave backup_repository empty to disable. Backup settings are written by
+# cloud-init at server creation; see README "Backups" for changing them later.
+
+variable "backup_repository" {
+  description = <<-EOT
+    restic repository for nightly MySQL + /etc/fleet backups. Use Object
+    Storage in a different location from the server, for example
+    "s3:https://hel1.your-objectstorage.com/my-fleet-backups/fleet".
+    Empty disables backups.
+  EOT
+  type        = string
+  default     = ""
+}
+
+variable "backup_access_key" {
+  description = "Access key for the backup bucket. Use credentials separate from s3_access_key."
+  type        = string
+  default     = ""
+  sensitive   = true
+
+  validation {
+    condition     = var.backup_repository == "" || var.backup_access_key != ""
+    error_message = "backup_access_key is required when backup_repository is set."
+  }
+}
+
+variable "backup_secret_key" {
+  description = "Secret key for the backup bucket."
+  type        = string
+  default     = ""
+  sensitive   = true
+
+  validation {
+    condition     = var.backup_repository == "" || var.backup_secret_key != ""
+    error_message = "backup_secret_key is required when backup_repository is set."
+  }
+}
+
+variable "backup_password" {
+  description = <<-EOT
+    restic repository password (min 16 chars). Keep it in a password manager,
+    separate from the state: with it and the bucket keys you can restore even
+    if the state is lost. Losing it makes the backups unreadable.
+  EOT
+  type        = string
+  default     = ""
+  sensitive   = true
+
+  validation {
+    condition     = var.backup_repository == "" || length(var.backup_password) >= 16
+    error_message = "backup_password must be at least 16 characters when backup_repository is set."
+  }
+}
+
+variable "backup_keep_daily" {
+  description = "Daily snapshots to keep."
+  type        = number
+  default     = 7
+}
+
+variable "backup_keep_weekly" {
+  description = "Weekly snapshots to keep."
+  type        = number
+  default     = 4
+}
+
+variable "backup_keep_monthly" {
+  description = "Monthly snapshots to keep."
+  type        = number
+  default     = 6
+}
+
+variable "backup_healthcheck_url" {
+  description = <<-EOT
+    Optional dead-man's-switch ping URL (healthchecks.io, Uptime Kuma push, …).
+    Pinged on start (/start), success, and failure (/fail). Configure the check
+    to expect a daily ping so a missed run alerts too. Empty disables it.
+  EOT
+  type        = string
+  default     = ""
+  sensitive   = true
+}
+
+variable "restic_version" {
+  description = "restic Docker image tag. Pin to an exact version."
+  type        = string
+  default     = "0.18.0"
+}

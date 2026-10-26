@@ -137,3 +137,21 @@ is copied.
 the fstab line and the `RequiresMountsFor` lines, then
 `rmdir /var/lib/fleet && mv /var/lib/fleet.pre-volume /var/lib/fleet` and start
 the stack again.
+
+## Off-host backups (#4, optional but recommended)
+
+Backups are set up by cloud-init, which existing servers don't re-run. After
+the steps above, set the `backup_*` variables (see README, Backups) and
+replace the server once. The data volume and Primary IPs are reattached, so
+data, TLS certs and DNS are kept. Expect a few minutes of downtime.
+
+```bash
+tofu apply -var protect_resources=false
+tofu taint hcloud_server.fleet
+tofu apply -var protect_resources=false
+tofu apply
+```
+
+The new server also gets the v0.2.0 cloud-init (mount guard and fstab entry)
+natively, so this replaces the manual `sed` and fstab edits from the data
+volume steps.

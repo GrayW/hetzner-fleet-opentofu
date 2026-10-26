@@ -210,6 +210,76 @@ write_files:
       [Install]
       WantedBy=multi-user.target
 
+%{ if backup_enabled ~}
+  # ── Off-host backups (restic) ─────────────────────────────────────────────
+  # podman --env-file format: raw KEY=value, no quotes.
+  - path: /etc/fleet/backup.env
+    permissions: '0600'
+    owner: root:root
+    content: |
+      RESTIC_REPOSITORY=${backup_repository}
+      RESTIC_PASSWORD=${backup_password}
+      AWS_ACCESS_KEY_ID=${backup_access_key}
+      AWS_SECRET_ACCESS_KEY=${backup_secret_key}
+
+  # Nightly: dump MySQL, then one restic snapshot of the dump plus /etc/fleet
+  # (the secrets a restore needs), then apply retention. restic runs from a
+  # pinned image; label=disable lets it read /etc/fleet without relabelling it.
+  - path: /usr/local/bin/fleet-backup
+    permissions: '0700'
+    owner: root:root
+    content: |
+      #!/bin/bash
+      set -Eeuo pipefail
+      HC_URL='${backup_hc_url}'
+      DUMP_DIR=/var/lib/fleet/backup
+      hc_ping() { if [ -n "$HC_URL" ]; then curl -fsS -m 10 --retry 3 "$HC_URL$1" >/dev/null || true; fi; }
+      trap 'hc_ping /fail' ERR
+      restic() {
+        podman run --rm -i --security-opt label=disable \
+          --env-file /etc/fleet/backup.env \
+          -v /etc/fleet:/etc/fleet:ro -v "$DUMP_DIR":/backup:ro -v /var/cache/restic:/cache \
+          docker.io/restic/restic:${restic_version} --cache-dir /cache "$@"
+      }
+      hc_ping /start
+      mkdir -p "$DUMP_DIR" /var/cache/restic
+      podman exec fleet-db sh -c 'MYSQL_PWD="$MYSQL_ROOT_PASSWORD" exec mysqldump -uroot \
+        --single-transaction --routines --triggers --events --set-gtid-purged=OFF \
+        --databases fleet' > "$DUMP_DIR/fleet.sql.tmp"
+      mv "$DUMP_DIR/fleet.sql.tmp" "$DUMP_DIR/fleet.sql"
+      restic cat config >/dev/null 2>&1 || restic init
+      restic backup --host ${server_name} --tag nightly \
+        --exclude /etc/fleet/backup.env /backup/fleet.sql /etc/fleet
+      restic forget --host ${server_name} --prune ${backup_keep}
+      rm -f "$DUMP_DIR/fleet.sql"
+      hc_ping ""
+
+  - path: /etc/systemd/system/fleet-backup.service
+    content: |
+      [Unit]
+      Description=Fleet off-host backup (restic)
+      RequiresMountsFor=/var/lib/fleet
+      After=fleet-db.service
+
+      [Service]
+      Type=oneshot
+      ExecStart=/usr/local/bin/fleet-backup
+      TimeoutStartSec=2h
+
+  - path: /etc/systemd/system/fleet-backup.timer
+    content: |
+      [Unit]
+      Description=Nightly Fleet backup
+
+      [Timer]
+      OnCalendar=*-*-* 03:00:00 UTC
+      RandomizedDelaySec=10m
+      Persistent=true
+
+      [Install]
+      WantedBy=timers.target
+
+%{ endif ~}
 runcmd:
   # Mount the data volume at /var/lib/fleet. OpenTofu attaches it just after the
   # server is created, so wait for the device. Hetzner formatted it at creation;
@@ -242,3 +312,6 @@ runcmd:
   - systemctl start fleet-redis.service
   - systemctl start fleet-server.service
   - systemctl start fleet-caddy.service
+%{ if backup_enabled ~}
+  - systemctl enable --now fleet-backup.timer
+%{ endif ~}
