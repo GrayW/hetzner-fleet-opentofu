@@ -3,7 +3,43 @@
 v0.2.0 changes infrastructure under a running server. `user_data` changes are
 ignored on existing servers (`ignore_changes = [user_data]`), so a plain
 `tofu apply` creates the new resources but doesn't reconfigure the server.
-Follow the steps below once per deployment.
+Follow the steps below once per deployment: do the **Primary IPs** imports
+first, then the data volume.
+
+## Primary IPs (#59)
+
+v0.2.0 manages the server's IPv4 and IPv6 as explicit Primary IPs with
+`auto_delete = false`, so a rebuilt server keeps its addresses. Your server
+already has Primary IPs that Hetzner created automatically. Import them so the
+addresses stay the same and DNS doesn't change. Do this **before** the first
+`tofu apply` of v0.2.0; otherwise tofu creates new IPs and moves the server
+onto them (a power-off and an address change).
+
+1. Find the IDs of the server's current Primary IPs:
+
+   ```bash
+   tofu show -json | jq -r '.values.root_module.resources[]
+     | select(.address == "hcloud_server.fleet") | .values.public_net[0]
+     | "ipv4=\(.ipv4) ipv6=\(.ipv6)"'
+   ```
+
+2. Import them:
+
+   ```bash
+   tofu import hcloud_primary_ip.ipv4 <ipv4-id>
+   tofu import hcloud_primary_ip.ipv6 <ipv6-id>
+   ```
+
+3. Check the plan. It should only rename the IPs, set `auto_delete = false`
+   and turn on delete protection. **No changes to `hcloud_server.fleet`'s
+   `public_net`, and nothing replaced**:
+
+   ```bash
+   tofu plan
+   ```
+
+   Don't apply yet. Continue with the data volume steps below; their
+   `tofu apply` applies both changes.
 
 ## Data volume (#58)
 
