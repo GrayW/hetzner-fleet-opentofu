@@ -22,6 +22,9 @@ explicitly and include upgrade notes.
 - `server_backups` variable (default `false`) for Hetzner's automated daily
   server-disk backups, about 20% extra on the server price. They don't cover
   the data volume (#62).
+- OpenTofu state and plan encryption (AES-GCM, PBKDF2 passphrase) with a
+  required `state_passphrase` variable, plus `backend.tf.example` for keeping
+  state in Hetzner Object Storage (#16).
 
 ### Changed
 - **Breaking:** `tofu destroy` and server replacement now fail by default.
@@ -34,6 +37,10 @@ explicitly and include upgrade notes.
 - **Upgrade required for existing servers:** import the server's existing
   Primary IPs **before** the first v0.2.0 apply, or tofu moves the server to
   new addresses. Steps in [docs/upgrade-0.2.md](docs/upgrade-0.2.md#primary-ips-59).
+- **Breaking:** state encryption is enforced. Every `tofu` command, including
+  `init`, needs `TF_VAR_state_passphrase`. Existing unencrypted state must be
+  converted once: see [docs/upgrade-0.2.md](docs/upgrade-0.2.md#state-encryption-16).
+  Terraform can no longer read the state.
 - hcloud provider constraint raised to `~> 1.70`.
 
 ## [0.1.0] - 2026-10-23

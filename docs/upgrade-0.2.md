@@ -3,8 +3,47 @@
 v0.2.0 changes infrastructure under a running server. `user_data` changes are
 ignored on existing servers (`ignore_changes = [user_data]`), so a plain
 `tofu apply` creates the new resources but doesn't reconfigure the server.
-Follow the steps below once per deployment: do the **Primary IPs** imports
-first, then the data volume.
+Follow the steps below once per deployment, in order: state encryption,
+then the Primary IP imports, then the data volume.
+
+## State encryption (#16)
+
+v0.2.0 encrypts the state and refuses to read unencrypted state, so convert
+it once **before** anything else. Back up the current state first.
+
+1. Back up and set the passphrase:
+
+   ```bash
+   cp terraform.tfstate terraform.tfstate.pre-encryption
+   export TF_VAR_state_passphrase='a-long-random-passphrase'
+   ```
+
+2. In `main.tf`, temporarily comment out the two `enforced = true` lines in the
+   `encryption` block. Enforcement also blocks the one-time fallback below.
+
+3. Re-initialise and rewrite the state encrypted. The `TF_ENCRYPTION` override
+   lets this one run read the old plaintext state:
+
+   ```bash
+   tofu init
+   TF_ENCRYPTION='method "unencrypted" "migrate" {}
+   state {
+     method = method.aes_gcm.main
+     fallback {
+       method = method.unencrypted.migrate
+     }
+   }' tofu apply -refresh-only
+   ```
+
+4. Restore `main.tf` (`git checkout main.tf`), check that `tofu plan` works,
+   and confirm the state is no longer readable plaintext:
+
+   ```bash
+   grep -c '"mysql_root"' terraform.tfstate   # expect 0
+   ```
+
+5. Delete `terraform.tfstate.pre-encryption` and any `terraform.tfstate.backup`
+   once you're satisfied. They hold the secrets in plaintext.
 
 ## Primary IPs (#59)
 
