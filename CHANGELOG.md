@@ -36,6 +36,11 @@ explicitly and include upgrade notes.
   writing a `recovery.tfvars`), override variables `fleet_server_private_key`,
   `wstep_cert_pem`, `wstep_key_pem` and `enroll_secret`, and
   `docs/secrets-recovery.md` (#60).
+- `scripts/restore.sh` restores the Fleet database from a restic snapshot
+  onto the server. It refuses when the snapshot's server key doesn't match,
+  flushes Redis, lets migrations run, and waits for `/healthz`.
+  `docs/restore.md` covers choosing a recovery path and the timed restore
+  drill (#61).
 
 ### Changed
 - **Breaking:** `tofu destroy` and server replacement now fail by default.
