@@ -41,7 +41,7 @@ jobs:
         run: node web/scripts/build.mjs
 
       - uses: actions/configure-pages@v5
-      - uses: actions/upload-pages-artifact@v3
+      - uses: actions/upload-pages-artifact@v5
         with:
           path: web/dist
 
