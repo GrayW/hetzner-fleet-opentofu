@@ -102,6 +102,12 @@ write_files:
       exec podman run --rm --network=fleet --env-file=/etc/fleet/env --entrypoint /usr/bin/fleet docker.io/fleetdm/fleet:${fleet_version} prepare db --no-prompt
 
   # ── Podman quadlet units ──────────────────────────────────────────────────
+  # Start order: MySQL and Redis healthy, then migrations, then Fleet healthy,
+  # then Caddy. Notify=healthy makes each unit count as started only once its
+  # health check passes, so After= on the next unit waits for real readiness.
+  # HealthOnFailure=kill stops a container that stays unhealthy and
+  # Restart=always brings it back. Health commands avoid '$' and quotes
+  # because quadlet copies them into the generated ExecStart line.
 
   - path: /etc/containers/systemd/fleet.network
     content: |
@@ -114,6 +120,7 @@ write_files:
       Description=Fleet MySQL
       # Never start on the bare root disk if the data volume is missing.
       RequiresMountsFor=/var/lib/fleet
+      Wants=network-online.target
       After=network-online.target
 
       [Container]
@@ -122,10 +129,22 @@ write_files:
       EnvironmentFile=/etc/fleet/db.env
       Volume=/var/lib/fleet/mysql:/var/lib/mysql:Z
       Network=fleet.network
+      # TCP, not the socket: the image's first-run init server listens on the
+      # socket only, so this stays unhealthy until the real server is up.
+      # mysqladmin ping exits 0 whenever the server answers, even without login.
+      HealthCmd=mysqladmin ping -h 127.0.0.1 --silent
+      HealthInterval=10s
+      HealthTimeout=5s
+      HealthRetries=6
+      HealthStartPeriod=120s
+      HealthOnFailure=kill
+      Notify=healthy
 
       [Service]
       Restart=always
-      TimeoutStartSec=180
+      RestartSec=5
+      # Covers the image pull and first-run initialisation.
+      TimeoutStartSec=300
 
       [Install]
       WantedBy=multi-user.target
@@ -136,6 +155,7 @@ write_files:
       Description=Fleet Redis
       # Never start on the bare root disk if the data volume is missing.
       RequiresMountsFor=/var/lib/fleet
+      Wants=network-online.target
       After=network-online.target
 
       [Container]
@@ -143,9 +163,19 @@ write_files:
       ContainerName=fleet-redis
       Network=fleet.network
       Volume=/var/lib/fleet/redis:/data:Z
+      # redis-cli exits 0 on error replies (e.g. LOADING), so match PONG.
+      HealthCmd=redis-cli ping | grep -q PONG
+      HealthInterval=10s
+      HealthTimeout=5s
+      HealthRetries=3
+      HealthStartPeriod=30s
+      HealthOnFailure=kill
+      Notify=healthy
 
       [Service]
       Restart=always
+      RestartSec=5
+      TimeoutStartSec=180
 
       [Install]
       WantedBy=multi-user.target
@@ -156,8 +186,13 @@ write_files:
       Description=Fleet MDM Server
       # Never start on the bare root disk if the data volume is missing.
       RequiresMountsFor=/var/lib/fleet
+      # fleet-db and fleet-redis only finish starting once healthy, so the
+      # migrations in ExecStartPre never race a MySQL that is still initialising.
       After=fleet-db.service fleet-redis.service
       Requires=fleet-db.service fleet-redis.service
+      # Never stop retrying: an outage longer than any start limit must still
+      # heal on its own once MySQL is back.
+      StartLimitIntervalSec=0
 
       [Container]
       Image=docker.io/fleetdm/fleet:${fleet_version}
@@ -175,14 +210,23 @@ write_files:
       # Explicit entrypoint + subcommand — works whether or not the image sets ENTRYPOINT.
       PodmanArgs=--entrypoint /usr/bin/fleet
       Exec=serve
+      # /healthz checks Fleet's MySQL and Redis connections too. The image is
+      # Alpine with BusyBox wget and no curl.
+      HealthCmd=wget -q -T 5 -O /dev/null http://127.0.0.1:8080/healthz
+      HealthInterval=15s
+      HealthTimeout=10s
+      HealthRetries=4
+      HealthStartPeriod=60s
+      HealthOnFailure=kill
+      Notify=healthy
 
       [Service]
       ExecStartPre=/usr/local/bin/fleet-migrate
-      Restart=on-failure
+      Restart=always
       RestartSec=20
-      TimeoutStartSec=300
-      StartLimitBurst=20
-      StartLimitIntervalSec=600
+      # Covers the image pull, migrations and the first passing health check.
+      # A large upgrade migration may need longer; see the upgrade docs.
+      TimeoutStartSec=600
 
       [Install]
       WantedBy=multi-user.target
@@ -193,7 +237,10 @@ write_files:
       Description=Caddy Reverse Proxy
       # Never start on the bare root disk if the data volume is missing.
       RequiresMountsFor=/var/lib/fleet
-      After=network-online.target
+      # Start after Fleet is healthy, but Wants= (not Requires=) so Caddy keeps
+      # serving, and renewing certificates, while Fleet restarts.
+      Wants=network-online.target fleet-server.service
+      After=network-online.target fleet-server.service
 
       [Container]
       Image=docker.io/library/caddy:2
@@ -206,6 +253,7 @@ write_files:
 
       [Service]
       Restart=always
+      RestartSec=5
 
       [Install]
       WantedBy=multi-user.target
@@ -308,6 +356,7 @@ runcmd:
   # Quadlet units are auto-enabled by the generator — enable is not allowed on
   # generated units and would fail. Just start them; reboot persistence is
   # handled by the WantedBy=multi-user.target in the [Install] section.
+  # Each start blocks until that container is healthy (Notify=healthy).
   - systemctl start fleet-db.service
   - systemctl start fleet-redis.service
   - systemctl start fleet-server.service
