@@ -41,8 +41,22 @@ explicitly and include upgrade notes.
   flushes Redis, lets migrations run, and waits for `/healthz`.
   `docs/restore.md` covers choosing a recovery path and the timed restore
   drill (#61).
+- Container health checks: `mysqladmin ping` over TCP for MySQL, `redis-cli
+  ping` for Redis and `/healthz` for Fleet (via BusyBox `wget`, since the image
+  has no `curl`). A container that stays unhealthy is killed and restarted
+  (#7). `docs/self-healing.md` covers the checks, expected recovery times and
+  a reboot and kill test.
 
 ### Changed
+- Start ordering: with `Notify=healthy`, migrations and Fleet start only once
+  MySQL and Redis pass their health checks, and Caddy starts once Fleet is
+  healthy (`Wants=`, so Caddy keeps running while Fleet restarts). Every unit
+  now uses `Restart=always`. `fleet-server` no longer has a start limit, so it
+  recovers by itself after a long MySQL outage. (Its old
+  `StartLimitIntervalSec` was in `[Service]`, where systemd ignores it.) (#63)
+- **Upgrade required for existing servers:** the new units come from
+  cloud-init, so replace the server to pick them up (data, IPs and DNS are
+  kept). See [docs/self-healing.md](docs/self-healing.md#existing-servers).
 - **Breaking:** `tofu destroy` and server replacement now fail by default.
   Upgrade note: the next `tofu apply` turns protection on in place (no server
   restart). To tear down, set `protect_resources = false`, apply, then destroy.

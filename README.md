@@ -271,6 +271,16 @@ The bucket name and endpoint are derived from `var.location` automatically (Hetz
 
 ---
 
+## Health checks and self-healing
+
+MySQL, Redis and Fleet have container health checks. A container that stays
+unhealthy is restarted. Units start in order (MySQL and Redis healthy,
+migrations, Fleet healthy, then Caddy), so the stack comes back on its own after
+a crash or reboot. See [docs/self-healing.md](docs/self-healing.md) for the
+checks, expected recovery times and a recovery test.
+
+---
+
 ## Useful SSH commands
 
 ```bash
@@ -279,6 +289,9 @@ ssh -i .fleet_ed25519 root@<ip> 'podman logs -f fleet-server'
 
 # Check all Fleet services
 ssh -i .fleet_ed25519 root@<ip> 'systemctl list-units "fleet-*"'
+
+# Show container health
+ssh -i .fleet_ed25519 root@<ip> "podman ps --format '{{.Names}}\t{{.Status}}'"
 
 # Monitor cloud-init progress
 ssh -i .fleet_ed25519 root@<ip> 'cloud-init status --wait && cloud-init analyze'
